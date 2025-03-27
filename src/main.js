@@ -10,8 +10,6 @@ const Engine = Matter.Engine,
   Runner = Matter.Runner,
   Bodies = Matter.Bodies,
   Body = Matter.Body,
-  Events = Matter.Events,
-  Constraint = Matter.Constraint,
   Composite = Matter.Composite;
 
 // Matter.use('matter-attractors');
@@ -75,7 +73,7 @@ Composite.add(engine.world, mouseConstraint);
 // };
 // mouseConstraint.angleB = bigCircle.angle;
 
-Matter.MouseConstraint.update = function (mouseConstraint, bodies) {
+Matter.MouseConstraint.update = function (mouseConstraint) {
   const mcMouse = mouseConstraint.mouse,
     constraint = mouseConstraint.constraint,
     body = Composite.allBodies(engine.world)[0]; // this is where I find my target Body
