@@ -1,3 +1,5 @@
+import './style.css';
+
 const canvas = document.getElementById('canvas');
 const gl = canvas.getContext('webgl');
 canvas.width = window.innerWidth - 20;
@@ -619,7 +621,7 @@ const scene = {
   obstacleX: 0.0,
   obstacleY: 0.0,
   // obstacleRadius: 0.15,
-  obstacleRadius: 0.1,
+  obstacleRadius: 0.15,
   paused: false,
   showObstacle: true,
   obstacleVelX: 0.0,
@@ -630,7 +632,7 @@ const scene = {
 };
 
 function setupScene() {
-  scene.obstacleRadius = 0.1;
+  scene.obstacleRadius = 0.15;
   scene.overRelaxation = 1.9;
   scene.dt = 1.0 / 60.0;
   scene.numPressureIters = 50;
@@ -639,13 +641,13 @@ function setupScene() {
   const res = 100;
   const tankHeight = 1.0 * simHeight;
   const tankWidth = 1.0 * simWidth;
-  const h = (tankHeight / res) * 3.5; // Changed by me
+  const h = (tankHeight / res) * 3; // Changed by me
   const density = 1000.0;
   const relWaterHeight = 0.9; // Change to change overall water height
   const relWaterWidth = 0.6;
 
   // compute number of particles
-  const r = 0.35 * h; // particle radius w.r.t. cell size // Changed by me
+  const r = 0.3 * h; // particle radius w.r.t. cell size // Changed by me
   const dx = 2.0 * r;
   const dy = (Math.sqrt(3.0) / 2.0) * dx;
 
