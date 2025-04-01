@@ -868,7 +868,7 @@ function draw() {
   if (scene.showParticles) {
     gl.clear(gl.DEPTH_BUFFER_BIT);
     const pointSize =
-      ((2.0 * scene.fluid.particleRadius) / simWidth) * canvas.width;
+      ((2.0 * scene.fluid.particleRadius) / simWidth) * canvas.width * 0.3;
 
     gl.useProgram(pointShader);
     gl.uniform2f(
