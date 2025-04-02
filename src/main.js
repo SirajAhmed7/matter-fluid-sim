@@ -2,8 +2,8 @@ import './style.css';
 
 const canvas = document.getElementById('canvas');
 const gl = canvas.getContext('webgl');
-canvas.width = window.innerWidth - 20;
-canvas.height = window.innerHeight - 20;
+canvas.width = window.innerWidth - 10;
+canvas.height = window.innerHeight - 10;
 
 // window.addEventListener('mousemove', () => {
 //   if (canvas.style.pointerEvents === 'none') {
@@ -1079,7 +1079,7 @@ function setObstacle(x, y, reset) {
 
 // interaction -------------------------------------------------------
 
-let mouseDown = true;
+let mouseDown;
 
 const startDrag = (x, y) => {
   const bounds = canvas.getBoundingClientRect();
@@ -1127,14 +1127,14 @@ canvas.addEventListener('mousemove', (event) => {
 
 // Handle chaos on focus and blur
 window.addEventListener('blur', () => {
-  console.log('Blur');
+  // console.log('Blur');
   // canvas.style.pointerEvents = 'none';
   endDrag();
   // console.log(canvas.style.pointerEvents);
 });
 
 window.addEventListener('focus', () => {
-  console.log('Focus');
+  // console.log('Focus');
   // canvas.style.pointerEvents = 'auto';
   endDrag();
   // console.log(canvas.style.pointerEvents);
@@ -1203,6 +1203,17 @@ const update = () => {
   draw();
   requestAnimationFrame(update);
 };
+
+// Responsive
+window.addEventListener('resize', () => {
+  // console.log('resize');
+  canvas.width = window.innerWidth - 20;
+  canvas.height = window.innerHeight - 20;
+  setupScene();
+  // simulate();
+  // draw();
+  // update();
+});
 
 setupScene();
 update();
