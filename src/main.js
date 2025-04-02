@@ -1,18 +1,22 @@
 import './style.css';
 
-// Handle chaos on focus and blur
-window.addEventListener('blur', () => {
-  console.log('Blur');
-});
-
-window.addEventListener('focus', () => {
-  console.log('Focus');
-});
-
 const canvas = document.getElementById('canvas');
 const gl = canvas.getContext('webgl');
 canvas.width = window.innerWidth - 20;
 canvas.height = window.innerHeight - 20;
+
+// window.addEventListener('mousemove', () => {
+//   if (canvas.style.pointerEvents === 'none') {
+//     setTimeout(() => {
+//       canvas.style.pointerEvents = 'auto';
+//     }, 50);
+//     console.log('moved after blur');
+//   }
+// });
+
+// window.addEventListener('focus', () => {
+//   console.log('Focus');
+// });
 
 canvas.focus();
 
@@ -1098,13 +1102,15 @@ const drag = (x, y) => {
     const scaledX = mx / cScale;
     const scaledY = (canvas.height - my) / cScale;
     setObstacle(scaledX, scaledY, false);
-  }
+  } else startDrag(x, y);
 };
 
 const endDrag = () => {
-  // mouseDown = false;
+  mouseDown = false;
+
   scene.obstacleVelX = 0.0;
   scene.obstacleVelY = 0.0;
+  0;
 };
 
 canvas.addEventListener('mousedown', (event) => {
@@ -1117,6 +1123,21 @@ canvas.addEventListener('mouseup', () => {
 
 canvas.addEventListener('mousemove', (event) => {
   drag(event.x, event.y);
+});
+
+// Handle chaos on focus and blur
+window.addEventListener('blur', () => {
+  console.log('Blur');
+  // canvas.style.pointerEvents = 'none';
+  endDrag();
+  // console.log(canvas.style.pointerEvents);
+});
+
+window.addEventListener('focus', () => {
+  console.log('Focus');
+  // canvas.style.pointerEvents = 'auto';
+  endDrag();
+  // console.log(canvas.style.pointerEvents);
 });
 
 canvas.addEventListener('touchstart', (event) => {
