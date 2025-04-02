@@ -21,8 +21,8 @@ canvas.height = window.innerHeight - 10;
 canvas.focus();
 
 const simHeight = 3;
-const cScale = canvas.height / simHeight;
-const simWidth = canvas.width / cScale;
+let cScale = canvas.height / simHeight;
+let simWidth = canvas.width / cScale;
 
 const U_FIELD = 0;
 const V_FIELD = 1;
@@ -1209,10 +1209,11 @@ window.addEventListener('resize', () => {
   // console.log('resize');
   canvas.width = window.innerWidth - 20;
   canvas.height = window.innerHeight - 20;
+
+  cScale = canvas.height / simHeight;
+  simWidth = canvas.width / cScale;
+
   setupScene();
-  // simulate();
-  // draw();
-  // update();
 });
 
 setupScene();
