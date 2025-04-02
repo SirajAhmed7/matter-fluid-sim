@@ -1,5 +1,14 @@
 import './style.css';
 
+// Handle chaos on focus and blur
+window.addEventListener('blur', () => {
+  console.log('Blur');
+});
+
+window.addEventListener('focus', () => {
+  console.log('Focus');
+});
+
 const canvas = document.getElementById('canvas');
 const gl = canvas.getContext('webgl');
 canvas.width = window.innerWidth - 20;
@@ -72,6 +81,11 @@ class FlipFluid {
     this.cellParticleIds = new Int32Array(maxParticles);
 
     this.numParticles = 0;
+
+    this.particleShape = new Int32Array(this.maxParticles); // 0=circle, 1=square, 2=triangle
+    for (let i = 0; i < this.maxParticles; i++) {
+      this.particleShape[i] = Math.floor(Math.random() * 3); // Random shape
+    }
   }
 
   integrateParticles(dt, gravity) {
@@ -641,13 +655,13 @@ function setupScene() {
   const res = 100;
   const tankHeight = 1.0 * simHeight;
   const tankWidth = 1.0 * simWidth;
-  const h = (tankHeight / res) * 3; // Changed by me
+  const h = (tankHeight / res) * 3.5; // Changed by me
   const density = 1000.0;
   const relWaterHeight = 0.9; // Change to change overall water height
   const relWaterWidth = 0.6;
 
   // compute number of particles
-  const r = 0.3 * h; // particle radius w.r.t. cell size // Changed by me
+  const r = 0.4 * h; // particle radius w.r.t. cell size // Changed by me
   const dx = 2.0 * r;
   const dy = (Math.sqrt(3.0) / 2.0) * dx;
 
@@ -714,17 +728,27 @@ const pointVertexShader = `
 `;
 
 const pointFragmentShader = `
-  precision mediump float;
+   precision mediump float;
   varying vec3 fragColor;
   varying float fragDrawDisk;
 
   void main() {
     if (fragDrawDisk == 1.0) {
+      // For circles (shape 0)
       float rx = 0.5 - gl_PointCoord.x;
       float ry = 0.5 - gl_PointCoord.y;
       float r2 = rx * rx + ry * ry;
       if (r2 > 0.25)
         discard;
+    } else if (fragDrawDisk == 2.0) {
+      // For squares (shape 1)
+      // No need to discard - squares fill the entire point area
+    } else if (fragDrawDisk == 3.0) {
+      // For triangles (shape 2)
+      vec2 coord = gl_PointCoord - vec2(0.5);
+      if (abs(coord.x) + abs(coord.y) > 0.5) {
+        discard;
+      }
     }
     gl_FragColor = vec4(fragColor, 1.0);
   }
@@ -868,7 +892,7 @@ function draw() {
   if (scene.showParticles) {
     gl.clear(gl.DEPTH_BUFFER_BIT);
     const pointSize =
-      ((2.0 * scene.fluid.particleRadius) / simWidth) * canvas.width * 0.3;
+      ((2.0 * scene.fluid.particleRadius) / simWidth) * canvas.width * 0.4; // Changed by me
 
     gl.useProgram(pointShader);
     gl.uniform2f(
@@ -877,27 +901,67 @@ function draw() {
       simHeight,
     );
     gl.uniform1f(gl.getUniformLocation(pointShader, 'pointSize'), pointSize);
-    gl.uniform1f(gl.getUniformLocation(pointShader, 'drawDisk'), 1.0);
 
-    if (pointVertexBuffer === null) pointVertexBuffer = gl.createBuffer();
-    if (pointColorBuffer === null) pointColorBuffer = gl.createBuffer();
+    // Create buffers if they don't exist
+    if (!pointVertexBuffer) pointVertexBuffer = gl.createBuffer();
+    if (!pointColorBuffer) pointColorBuffer = gl.createBuffer();
 
-    gl.bindBuffer(gl.ARRAY_BUFFER, pointVertexBuffer);
-    gl.bufferData(gl.ARRAY_BUFFER, scene.fluid.particlePos, gl.DYNAMIC_DRAW);
-
+    // Get attribute locations once
     const posLoc = gl.getAttribLocation(pointShader, 'attrPosition');
-    gl.enableVertexAttribArray(posLoc);
-    gl.vertexAttribPointer(posLoc, 2, gl.FLOAT, false, 0, 0);
-
-    gl.bindBuffer(gl.ARRAY_BUFFER, pointColorBuffer);
-    gl.bufferData(gl.ARRAY_BUFFER, scene.fluid.particleColor, gl.DYNAMIC_DRAW);
-
     const colorLoc = gl.getAttribLocation(pointShader, 'attrColor');
-    gl.enableVertexAttribArray(colorLoc);
-    gl.vertexAttribPointer(colorLoc, 3, gl.FLOAT, false, 0, 0);
 
-    gl.drawArrays(gl.POINTS, 0, scene.fluid.numParticles);
+    // Draw particles in batches by shape for efficiency
+    const shapes = [1.0, 2.0, 3.0]; // 1=circle, 2=square, 3=triangle
 
+    for (let shapeIdx = 0; shapeIdx < 3; shapeIdx++) {
+      // Set the shape type for this batch
+      gl.uniform1f(
+        gl.getUniformLocation(pointShader, 'drawDisk'),
+        shapes[shapeIdx],
+      );
+
+      // Collect particles of this shape
+      const shapeParticles = [];
+      const shapeColors = [];
+      const f = scene.fluid;
+
+      for (let i = 0; i < f.numParticles; i++) {
+        if (f.particleShape[i] === shapeIdx) {
+          shapeParticles.push(f.particlePos[2 * i]);
+          shapeParticles.push(f.particlePos[2 * i + 1]);
+          shapeColors.push(f.particleColor[3 * i]);
+          shapeColors.push(f.particleColor[3 * i + 1]);
+          shapeColors.push(f.particleColor[3 * i + 2]);
+        }
+      }
+
+      if (shapeParticles.length === 0) continue;
+
+      // Bind and fill position buffer
+      gl.bindBuffer(gl.ARRAY_BUFFER, pointVertexBuffer);
+      gl.bufferData(
+        gl.ARRAY_BUFFER,
+        new Float32Array(shapeParticles),
+        gl.DYNAMIC_DRAW,
+      );
+      gl.enableVertexAttribArray(posLoc);
+      gl.vertexAttribPointer(posLoc, 2, gl.FLOAT, false, 0, 0);
+
+      // Bind and fill color buffer
+      gl.bindBuffer(gl.ARRAY_BUFFER, pointColorBuffer);
+      gl.bufferData(
+        gl.ARRAY_BUFFER,
+        new Float32Array(shapeColors),
+        gl.DYNAMIC_DRAW,
+      );
+      gl.enableVertexAttribArray(colorLoc);
+      gl.vertexAttribPointer(colorLoc, 3, gl.FLOAT, false, 0, 0);
+
+      // Draw this batch
+      gl.drawArrays(gl.POINTS, 0, shapeParticles.length / 2);
+    }
+
+    // Clean up
     gl.disableVertexAttribArray(posLoc);
     gl.disableVertexAttribArray(colorLoc);
     gl.bindBuffer(gl.ARRAY_BUFFER, null);
