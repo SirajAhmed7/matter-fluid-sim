@@ -2,27 +2,14 @@ import './style.css';
 
 const canvas = document.getElementById('canvas');
 const gl = canvas.getContext('webgl');
-canvas.width = window.innerWidth - 10;
-canvas.height = window.innerHeight - 10;
-
-// window.addEventListener('mousemove', () => {
-//   if (canvas.style.pointerEvents === 'none') {
-//     setTimeout(() => {
-//       canvas.style.pointerEvents = 'auto';
-//     }, 50);
-//     console.log('moved after blur');
-//   }
-// });
-
-// window.addEventListener('focus', () => {
-//   console.log('Focus');
-// });
+canvas.width = window.innerWidth - 20;
+canvas.height = window.innerHeight - 20;
 
 canvas.focus();
 
 const simHeight = 3;
-let cScale = canvas.height / simHeight;
-let simWidth = canvas.width / cScale;
+const cScale = canvas.height / simHeight;
+const simWidth = canvas.width / cScale;
 
 const U_FIELD = 0;
 const V_FIELD = 1;
@@ -36,6 +23,47 @@ let cnt = 0;
 const clamp = (x, min, max) => Math.max(min, Math.min(max, x));
 
 // ----------------- start of simulator ------------------------------
+
+let logoTexture = null;
+
+function loadTexture(gl, url) {
+  const texture = gl.createTexture();
+  gl.bindTexture(gl.TEXTURE_2D, texture);
+
+  // Fill with a temporary color while the image loads
+  gl.texImage2D(
+    gl.TEXTURE_2D,
+    0,
+    gl.RGBA,
+    1,
+    1,
+    0,
+    gl.RGBA,
+    gl.UNSIGNED_BYTE,
+    new Uint8Array([255, 255, 255, 255]),
+  );
+
+  const image = new Image();
+  image.onload = function () {
+    gl.bindTexture(gl.TEXTURE_2D, texture);
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, image);
+
+    // Only generate mips if the image is a power of 2 in both dimensions
+    if (isPowerOf2(image.width) && isPowerOf2(image.height)) {
+      gl.generateMipmap(gl.TEXTURE_2D);
+    } else {
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+    }
+  };
+  image.src = url;
+  return texture;
+}
+
+function isPowerOf2(value) {
+  return (value & (value - 1)) === 0;
+}
 
 class FlipFluid {
   constructor(density, width, height, spacing, particleRadius, maxParticles) {
@@ -63,6 +91,7 @@ class FlipFluid {
 
     this.particlePos = new Float32Array(2 * this.maxParticles);
     this.particleColor = new Float32Array(3 * this.maxParticles);
+
     for (let i = 0; i < this.maxParticles; i++) {
       // this.particleColor[3 * i + 2] = 1.0;
       this.particleColor[3 * i] = 1.0;
@@ -85,11 +114,6 @@ class FlipFluid {
     this.cellParticleIds = new Int32Array(maxParticles);
 
     this.numParticles = 0;
-
-    this.particleShape = new Int32Array(this.maxParticles); // 0=circle, 1=square, 2=triangle
-    for (let i = 0; i < this.maxParticles; i++) {
-      this.particleShape[i] = Math.floor(Math.random() * 3); // Random shape
-    }
   }
 
   integrateParticles(dt, gravity) {
@@ -659,13 +683,13 @@ function setupScene() {
   const res = 100;
   const tankHeight = 1.0 * simHeight;
   const tankWidth = 1.0 * simWidth;
-  const h = (tankHeight / res) * 3.5; // Changed by me
+  const h = (tankHeight / res) * 5.7; // Changed by me
   const density = 1000.0;
-  const relWaterHeight = 0.9; // Change to change overall water height
+  const relWaterHeight = 0.98; // Change to change overall water height
   const relWaterWidth = 0.6;
 
   // compute number of particles
-  const r = 0.4 * h; // particle radius w.r.t. cell size // Changed by me
+  const r = 0.35 * h; // particle radius w.r.t. cell size // Changed by me
   const dx = 2.0 * r;
   const dy = (Math.sqrt(3.0) / 2.0) * dx;
 
@@ -732,29 +756,58 @@ const pointVertexShader = `
 `;
 
 const pointFragmentShader = `
-   precision mediump float;
+  precision mediump float;
   varying vec3 fragColor;
   varying float fragDrawDisk;
 
   void main() {
     if (fragDrawDisk == 1.0) {
-      // For circles (shape 0)
       float rx = 0.5 - gl_PointCoord.x;
       float ry = 0.5 - gl_PointCoord.y;
       float r2 = rx * rx + ry * ry;
       if (r2 > 0.25)
         discard;
-    } else if (fragDrawDisk == 2.0) {
-      // For squares (shape 1)
-      // No need to discard - squares fill the entire point area
-    } else if (fragDrawDisk == 3.0) {
-      // For triangles (shape 2)
-      vec2 coord = gl_PointCoord - vec2(0.5);
-      if (abs(coord.x) + abs(coord.y) > 0.5) {
-        discard;
-      }
     }
     gl_FragColor = vec4(fragColor, 1.0);
+  }
+`;
+
+const texturedParticleVertexShader = `
+  attribute vec2 attrPosition;
+  attribute vec3 attrColor;
+  uniform vec2 domainSize;
+  uniform float pointSize;
+
+  varying vec3 fragColor;
+
+  void main() {
+    vec4 screenTransform = 
+      vec4(2.0 / domainSize.x, 2.0 / domainSize.y, -1.0, -1.0);
+    gl_Position =
+      vec4(attrPosition * screenTransform.xy + screenTransform.zw, 0.0, 1.0);
+
+    gl_PointSize = pointSize;
+    fragColor = attrColor;
+  }
+`;
+
+const texturedParticleFragmentShader = `
+  precision mediump float;
+  varying vec3 fragColor;
+  uniform sampler2D texture;
+  uniform float logoIntensity;
+
+  void main() {
+    // Get texture color using gl_PointCoord (automatically provided for point sprites)
+    vec4 texColor = texture2D(texture, gl_PointCoord);
+    
+    // Only show opaque parts of the logo
+    if (texColor.a < 0.1) discard;
+    
+    // Mix particle color with logo texture
+    vec3 finalColor = mix(fragColor, texColor.rgb, logoIntensity);
+    
+    gl_FragColor = vec4(finalColor, 1.0);
   }
 `;
 
@@ -892,80 +945,97 @@ function draw() {
     gl.bindBuffer(gl.ARRAY_BUFFER, null);
   }
 
+  // Load texture if not already loaded
+  if (!logoTexture) {
+    logoTexture = loadTexture(gl, '/rare_logo.png'); // Update this path
+  }
+
   // water
+  // if (scene.showParticles) {
+  //   gl.clear(gl.DEPTH_BUFFER_BIT);
+  //   const pointSize =
+  //     ((2.0 * scene.fluid.particleRadius) / simWidth) * canvas.width * 0.3;
+
+  //   gl.useProgram(pointShader);
+  //   gl.uniform2f(
+  //     gl.getUniformLocation(pointShader, 'domainSize'),
+  //     simWidth,
+  //     simHeight,
+  //   );
+  //   gl.uniform1f(gl.getUniformLocation(pointShader, 'pointSize'), pointSize);
+  //   gl.uniform1f(gl.getUniformLocation(pointShader, 'drawDisk'), 1.0);
+
+  //   if (pointVertexBuffer === null) pointVertexBuffer = gl.createBuffer();
+  //   if (pointColorBuffer === null) pointColorBuffer = gl.createBuffer();
+
+  //   gl.bindBuffer(gl.ARRAY_BUFFER, pointVertexBuffer);
+  //   gl.bufferData(gl.ARRAY_BUFFER, scene.fluid.particlePos, gl.DYNAMIC_DRAW);
+
+  //   const posLoc = gl.getAttribLocation(pointShader, 'attrPosition');
+  //   gl.enableVertexAttribArray(posLoc);
+  //   gl.vertexAttribPointer(posLoc, 2, gl.FLOAT, false, 0, 0);
+
+  //   gl.bindBuffer(gl.ARRAY_BUFFER, pointColorBuffer);
+  //   gl.bufferData(gl.ARRAY_BUFFER, scene.fluid.particleColor, gl.DYNAMIC_DRAW);
+
+  //   const colorLoc = gl.getAttribLocation(pointShader, 'attrColor');
+  //   gl.enableVertexAttribArray(colorLoc);
+  //   gl.vertexAttribPointer(colorLoc, 3, gl.FLOAT, false, 0, 0);
+
+  //   gl.drawArrays(gl.POINTS, 0, scene.fluid.numParticles);
+
+  //   gl.disableVertexAttribArray(posLoc);
+  //   gl.disableVertexAttribArray(colorLoc);
+  //   gl.bindBuffer(gl.ARRAY_BUFFER, null);
+  // }
+
   if (scene.showParticles) {
     gl.clear(gl.DEPTH_BUFFER_BIT);
     const pointSize =
-      ((2.0 * scene.fluid.particleRadius) / simWidth) * canvas.width * 0.4; // Changed by me
+      ((2.0 * scene.fluid.particleRadius) / simWidth) * canvas.width * 0.6;
 
-    gl.useProgram(pointShader);
+    // Use textured shader
+    const texturedShader = createShader(
+      gl,
+      texturedParticleVertexShader,
+      texturedParticleFragmentShader,
+    );
+    gl.useProgram(texturedShader);
+
+    // Set uniforms
     gl.uniform2f(
-      gl.getUniformLocation(pointShader, 'domainSize'),
+      gl.getUniformLocation(texturedShader, 'domainSize'),
       simWidth,
       simHeight,
     );
-    gl.uniform1f(gl.getUniformLocation(pointShader, 'pointSize'), pointSize);
+    gl.uniform1f(gl.getUniformLocation(texturedShader, 'pointSize'), pointSize);
+    gl.uniform1f(gl.getUniformLocation(texturedShader, 'logoIntensity'), 0.8);
 
-    // Create buffers if they don't exist
-    if (!pointVertexBuffer) pointVertexBuffer = gl.createBuffer();
-    if (!pointColorBuffer) pointColorBuffer = gl.createBuffer();
+    // Bind texture
+    gl.activeTexture(gl.TEXTURE0);
+    gl.bindTexture(gl.TEXTURE_2D, logoTexture);
+    gl.uniform1i(gl.getUniformLocation(texturedShader, 'texture'), 0);
 
-    // Get attribute locations once
-    const posLoc = gl.getAttribLocation(pointShader, 'attrPosition');
-    const colorLoc = gl.getAttribLocation(pointShader, 'attrColor');
+    // Set up buffers (same as before)
+    if (pointVertexBuffer === null) pointVertexBuffer = gl.createBuffer();
+    if (pointColorBuffer === null) pointColorBuffer = gl.createBuffer();
 
-    // Draw particles in batches by shape for efficiency
-    const shapes = [1.0, 2.0, 3.0]; // 1=circle, 2=square, 3=triangle
+    gl.bindBuffer(gl.ARRAY_BUFFER, pointVertexBuffer);
+    gl.bufferData(gl.ARRAY_BUFFER, scene.fluid.particlePos, gl.DYNAMIC_DRAW);
 
-    for (let shapeIdx = 0; shapeIdx < 3; shapeIdx++) {
-      // Set the shape type for this batch
-      gl.uniform1f(
-        gl.getUniformLocation(pointShader, 'drawDisk'),
-        shapes[shapeIdx],
-      );
+    const posLoc = gl.getAttribLocation(texturedShader, 'attrPosition');
+    gl.enableVertexAttribArray(posLoc);
+    gl.vertexAttribPointer(posLoc, 2, gl.FLOAT, false, 0, 0);
 
-      // Collect particles of this shape
-      const shapeParticles = [];
-      const shapeColors = [];
-      const f = scene.fluid;
+    gl.bindBuffer(gl.ARRAY_BUFFER, pointColorBuffer);
+    gl.bufferData(gl.ARRAY_BUFFER, scene.fluid.particleColor, gl.DYNAMIC_DRAW);
 
-      for (let i = 0; i < f.numParticles; i++) {
-        if (f.particleShape[i] === shapeIdx) {
-          shapeParticles.push(f.particlePos[2 * i]);
-          shapeParticles.push(f.particlePos[2 * i + 1]);
-          shapeColors.push(f.particleColor[3 * i]);
-          shapeColors.push(f.particleColor[3 * i + 1]);
-          shapeColors.push(f.particleColor[3 * i + 2]);
-        }
-      }
+    const colorLoc = gl.getAttribLocation(texturedShader, 'attrColor');
+    gl.enableVertexAttribArray(colorLoc);
+    gl.vertexAttribPointer(colorLoc, 3, gl.FLOAT, false, 0, 0);
 
-      if (shapeParticles.length === 0) continue;
+    gl.drawArrays(gl.POINTS, 0, scene.fluid.numParticles);
 
-      // Bind and fill position buffer
-      gl.bindBuffer(gl.ARRAY_BUFFER, pointVertexBuffer);
-      gl.bufferData(
-        gl.ARRAY_BUFFER,
-        new Float32Array(shapeParticles),
-        gl.DYNAMIC_DRAW,
-      );
-      gl.enableVertexAttribArray(posLoc);
-      gl.vertexAttribPointer(posLoc, 2, gl.FLOAT, false, 0, 0);
-
-      // Bind and fill color buffer
-      gl.bindBuffer(gl.ARRAY_BUFFER, pointColorBuffer);
-      gl.bufferData(
-        gl.ARRAY_BUFFER,
-        new Float32Array(shapeColors),
-        gl.DYNAMIC_DRAW,
-      );
-      gl.enableVertexAttribArray(colorLoc);
-      gl.vertexAttribPointer(colorLoc, 3, gl.FLOAT, false, 0, 0);
-
-      // Draw this batch
-      gl.drawArrays(gl.POINTS, 0, shapeParticles.length / 2);
-    }
-
-    // Clean up
     gl.disableVertexAttribArray(posLoc);
     gl.disableVertexAttribArray(colorLoc);
     gl.bindBuffer(gl.ARRAY_BUFFER, null);

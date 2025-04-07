@@ -7,13 +7,6 @@ settings:
 importers:
 
   .:
-    dependencies:
-      matter-attractors:
-        specifier: ^0.1.6
-        version: 0.1.6
-      matter-js:
-        specifier: ^0.20.0
-        version: 0.20.0
     devDependencies:
       '@eslint/js':
         specifier: ^9.23.0
@@ -552,12 +545,6 @@ packages:
 
   lodash.merge@4.6.2:
     resolution: {integrity: sha512-0KpjqXRVvrYyCsX1swR/XTK0va6VQkQM6MNo7PqW77ByjAhoARA8EfrP1N4+KlKj8YS0ZUCtRT/YUuhyYDujIQ==}
-
-  matter-attractors@0.1.6:
-    resolution: {integrity: sha512-vGFsFHS9m0hXnaswfKXT2nKfPXJs4lwnQJwkGrs1IHrVldKAmlBKBb4OcYh0rwQga3CFWGUq3JvKpWZvZuqlDQ==}
-
-  matter-js@0.20.0:
-    resolution: {integrity: sha512-iC9fYR7zVT3HppNnsFsp9XOoQdQN2tUyfaKg4CHLH8bN+j6GT4Gw7IH2rP0tflAebrHFw730RR3DkVSZRX8hwA==}
 
   minimatch@3.1.2:
     resolution: {integrity: sha512-J7p63hRiAjw1NDEww1W7i37+ByIrOWO5XQQAzZ3VOcL0PNybwpfmV/N05zFAzwQ9USyEcX6t3UO+K5aqBQOIHw==}
@@ -1130,10 +1117,6 @@ snapshots:
       p-locate: 5.0.0
 
   lodash.merge@4.6.2: {}
-
-  matter-attractors@0.1.6: {}
-
-  matter-js@0.20.0: {}
 
   minimatch@3.1.2:
     dependencies:
