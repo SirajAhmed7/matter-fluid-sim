@@ -653,7 +653,7 @@ class FlipFluid {
 const scene = {
   gravity: -9.81,
   dt: 1.0 / 120.0,
-  flipRatio: 0.9,
+  flipRatio: 0.45,
   numPressureIters: 100,
   numParticleIters: 2,
   frameNr: 0,
@@ -685,8 +685,8 @@ function setupScene() {
   const tankWidth = 1.0 * simWidth;
   const h = (tankHeight / res) * 5.7; // Changed by me
   const density = 1000.0;
-  const relWaterHeight = 0.98; // Change to change overall water height
-  const relWaterWidth = 0.6;
+  const relWaterHeight = 0.75; // Change to change overall water height
+  const relWaterWidth = 0.8;
 
   // compute number of particles
   const r = 0.35 * h; // particle radius w.r.t. cell size // Changed by me
