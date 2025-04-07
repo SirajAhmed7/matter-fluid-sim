@@ -992,7 +992,7 @@ function draw() {
   if (scene.showParticles) {
     gl.clear(gl.DEPTH_BUFFER_BIT);
     const pointSize =
-      ((2.0 * scene.fluid.particleRadius) / simWidth) * canvas.width * 0.6;
+      ((2.0 * scene.fluid.particleRadius) / simWidth) * canvas.width * 0.65;
 
     // Use textured shader
     const texturedShader = createShader(
