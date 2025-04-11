@@ -1,9 +1,14 @@
 import './style.css';
 
+const wrapper = document.querySelector('.wrapper');
 const canvas = document.getElementById('canvas');
 const gl = canvas.getContext('webgl');
-canvas.width = window.innerWidth - 20;
-canvas.height = window.innerHeight - 20;
+// canvas.width = window.innerWidth - 20;
+// canvas.height = window.innerHeight - 20;
+canvas.width = wrapper.clientWidth + wrapper.clientWidth * 0.055;
+canvas.height = wrapper.clientHeight + wrapper.clientHeight * 0.041;
+// canvas.width = wrapper.clientWidth + wrapper.clientWidth * 0.15;
+// canvas.height = wrapper.clientHeight + wrapper.clientHeight * 0.09;
 
 canvas.focus();
 
@@ -220,11 +225,60 @@ class FlipFluid {
     }
   }
 
+  // handleParticleCollisions(obstacleX, obstacleY, obstacleRadius) {
+  //   const h = 1.0 / this.fInvSpacing;
+  //   const r = this.particleRadius;
+  //   const or = obstacleRadius;
+  //   const or2 = or * or;
+  //   const minDist = obstacleRadius + r;
+  //   const minDist2 = minDist * minDist;
+
+  //   const minX = h + r;
+  //   const maxX = (this.fNumX - 1) * h - r;
+  //   const minY = h + r;
+  //   const maxY = (this.fNumY - 1) * h - r;
+
+  //   for (let i = 0; i < this.numParticles; i++) {
+  //     let x = this.particlePos[2 * i];
+  //     let y = this.particlePos[2 * i + 1];
+
+  //     const dx = x - obstacleX;
+  //     const dy = y - obstacleY;
+  //     const d2 = dx * dx + dy * dy;
+
+  //     // obstacle collision
+  //     if (d2 < minDist2) {
+  //       this.particleVel[2 * i] = scene.obstacleVelX;
+  //       this.particleVel[2 * i + 1] = scene.obstacleVelY;
+  //     }
+
+  //     // wall collisions
+  //     if (x < minX) {
+  //       x = minX;
+  //       this.particleVel[2 * i] = 0.0;
+  //     }
+  //     if (x > maxX) {
+  //       x = maxX;
+  //       this.particleVel[2 * i] = 0.0;
+  //     }
+  //     if (y < minY) {
+  //       y = minY;
+  //       this.particleVel[2 * i + 1] = 0.0;
+  //     }
+  //     if (y > maxY) {
+  //       y = maxY;
+  //       this.particleVel[2 * i + 1] = 0.0;
+  //     }
+
+  //     this.particlePos[2 * i] = x;
+  //     this.particlePos[2 * i + 1] = y;
+  //   }
+  // }
+
   handleParticleCollisions(obstacleX, obstacleY, obstacleRadius) {
     const h = 1.0 / this.fInvSpacing;
     const r = this.particleRadius;
     const or = obstacleRadius;
-    const or2 = or * or;
     const minDist = obstacleRadius + r;
     const minDist2 = minDist * minDist;
 
@@ -241,10 +295,27 @@ class FlipFluid {
       const dy = y - obstacleY;
       const d2 = dx * dx + dy * dy;
 
-      // obstacle collision
-      if (d2 < minDist2) {
-        this.particleVel[2 * i] = scene.obstacleVelX;
-        this.particleVel[2 * i + 1] = scene.obstacleVelY;
+      // Improved obstacle collision - push particles out to surface
+      if (d2 < minDist2 && d2 > 0.0) {
+        const d = Math.sqrt(d2);
+        const correction = (minDist - d) / d;
+        const cx = dx * correction;
+        const cy = dy * correction;
+
+        // Move particle to surface
+        x = obstacleX + dx * (minDist / d);
+        y = obstacleY + dy * (minDist / d);
+
+        // Reflect velocity with damping
+        const dot =
+          dx * this.particleVel[2 * i] + dy * this.particleVel[2 * i + 1];
+        const damping = 0.8; // Energy loss on collision
+        this.particleVel[2 * i] =
+          (this.particleVel[2 * i] - ((1.0 + damping) * dot * dx) / d2) *
+          damping;
+        this.particleVel[2 * i + 1] =
+          (this.particleVel[2 * i + 1] - ((1.0 + damping) * dot * dy) / d2) *
+          damping;
       }
 
       // wall collisions
@@ -348,6 +419,21 @@ class FlipFluid {
         }
       }
     }
+
+    // if (!toGrid) {
+    //   // ... existing code ...
+
+    //   if (denom > 0.0) {
+    //     const picV = /* ... */;
+    //     const corr = /* ... */;
+    //     const flipV = v + corr;
+
+    //     // Add small damping factor (0.99 means 1% energy loss per frame)
+    //     const damping = 0.99;
+    //     this.particleVel[2 * i + component] =
+    //       ((1.0 - flipRatio) * picV + flipRatio * flipV) * damping;
+    //   }
+    // }
 
     for (let component = 0; component < 2; component++) {
       const dx = component === 0 ? 0.0 : h2;
@@ -663,7 +749,7 @@ const scene = {
   obstacleX: 0.0,
   obstacleY: 0.0,
   // obstacleRadius: 0.15,
-  obstacleRadius: 0.15,
+  obstacleRadius: 0.35,
   paused: false,
   showObstacle: true,
   obstacleVelX: 0.0,
@@ -674,7 +760,7 @@ const scene = {
 };
 
 function setupScene() {
-  scene.obstacleRadius = 0.15;
+  scene.obstacleRadius = 0.35;
   scene.overRelaxation = 1.9;
   scene.dt = 1.0 / 60.0;
   scene.numPressureIters = 50;
@@ -683,7 +769,7 @@ function setupScene() {
   const res = 100;
   const tankHeight = 1.0 * simHeight;
   const tankWidth = 1.0 * simWidth;
-  const h = (tankHeight / res) * 5.7; // Changed by me
+  const h = (tankHeight / res) * 5.0; // Changed by me
   const density = 1000.0;
   const relWaterHeight = 0.75; // Change to change overall water height
   const relWaterWidth = 0.8;
@@ -992,7 +1078,7 @@ function draw() {
   if (scene.showParticles) {
     gl.clear(gl.DEPTH_BUFFER_BIT);
     const pointSize =
-      ((2.0 * scene.fluid.particleRadius) / simWidth) * canvas.width * 0.65;
+      ((2.0 * scene.fluid.particleRadius) / simWidth) * canvas.width * 0.75;
 
     // Use textured shader
     const texturedShader = createShader(
@@ -1110,6 +1196,11 @@ function draw() {
 }
 
 function setObstacle(x, y, reset) {
+  // // Keep obstacle within bounds
+  // const r = scene.obstacleRadius;
+  // x = Math.max(r, Math.min(simWidth - r, x));
+  // y = Math.max(r, Math.min(simHeight - r, y));
+
   let vx = 0.0;
   let vy = 0.0;
 
@@ -1117,6 +1208,14 @@ function setObstacle(x, y, reset) {
     vx = (x - scene.obstacleX) / scene.dt;
     vy = (y - scene.obstacleY) / scene.dt;
   }
+
+  // let vx = 0.0;
+  // let vy = 0.0;
+
+  // if (!reset) {
+  //   vx = (x - scene.obstacleX) / scene.dt;
+  //   vy = (y - scene.obstacleY) / scene.dt;
+  // }
 
   scene.obstacleX = x;
   scene.obstacleY = y;
@@ -1149,7 +1248,72 @@ function setObstacle(x, y, reset) {
 
 // interaction -------------------------------------------------------
 
+// function setObstacle(x, y, reset) {
+//   const obstaclePadding = scene.obstacleRadius * 1.2; // 20% padding
+
+//   // Constrain position to stay within walls
+//   x = Math.max(obstaclePadding, Math.min(simWidth - obstaclePadding, x));
+//   y = Math.max(obstaclePadding, Math.min(simHeight - obstaclePadding, y));
+
+//   let vx = 0.0;
+//   let vy = 0.0;
+
+//   if (!reset) {
+//     vx = (x - scene.obstacleX) / scene.dt;
+//     vy = (y - scene.obstacleY) / scene.dt;
+//   }
+
+//   scene.obstacleX = x;
+//   scene.obstacleY = y;
+
+//   // Rest of your existing obstacle setup code...
+//   const r = scene.obstacleRadius;
+//   const f = scene.fluid;
+//   const n = f.fNumY;
+//   const cd = Math.sqrt(2) * f.h;
+
+//   for (let i = 1; i < f.fNumX - 2; i++) {
+//     for (let j = 1; j < f.fNumY - 2; j++) {
+//       f.s[i * n + j] = 1.0;
+//       const dx = (i + 0.5) * f.h - x;
+//       const dy = (j + 0.5) * f.h - y;
+//       if (dx * dx + dy * dy < r * r) {
+//         f.s[i * n + j] = 0.0;
+//         f.u[i * n + j] = vx;
+//         f.u[(i + 1) * n + j] = vx;
+//         f.v[i * n + j] = vy;
+//         f.v[i * n + j + 1] = vy;
+//       }
+//     }
+//   }
+
+//   scene.showObstacle = true;
+//   scene.obstacleVelX = vx;
+//   scene.obstacleVelY = vy;
+// }
+
+let prevMouseX = null;
+let prevMouseY = null;
+let prevTime = null;
+let mouseVelocity = 0;
+const maxRadius = 0.7; // Maximum radius when moving fast
+const minRadius = 0.1; // Minimum radius when barely moving
+const velocitySensitivity = 0.03; // How quickly radius responds to velocity
+
 let mouseDown;
+
+// const startDrag = (x, y) => {
+//   const bounds = canvas.getBoundingClientRect();
+//   const mx = x - bounds.left - canvas.clientLeft;
+//   const my = y - bounds.top - canvas.clientTop;
+//   mouseDown = true;
+
+//   const scaledX = mx / cScale;
+//   const scaledY = (canvas.height - my) / cScale;
+
+//   setObstacle(scaledX, scaledY, true);
+//   scene.paused = false;
+// };
 
 const startDrag = (x, y) => {
   const bounds = canvas.getBoundingClientRect();
@@ -1157,14 +1321,84 @@ const startDrag = (x, y) => {
   const my = y - bounds.top - canvas.clientTop;
   mouseDown = true;
 
+  prevMouseX = x;
+  prevMouseY = y;
+  prevTime = performance.now();
+
   const scaledX = mx / cScale;
   const scaledY = (canvas.height - my) / cScale;
-
   setObstacle(scaledX, scaledY, true);
   scene.paused = false;
 };
 
+// const endDrag = () => {
+//   mouseDown = false;
+
+//   scene.obstacleVelX = 0.0;
+//   scene.obstacleVelY = 0.0;
+//   0;
+// };
+
+const endDrag = () => {
+  mouseDown = false;
+  prevMouseX = null;
+  prevMouseY = null;
+  prevTime = null;
+
+  // Smoothly shrink radius when mouse stops
+  const shrinkRadius = () => {
+    scene.obstacleRadius *= 0.9;
+    if (scene.obstacleRadius > 0.01) {
+      requestAnimationFrame(shrinkRadius);
+    } else {
+      scene.obstacleRadius = 0;
+    }
+    setObstacle(scene.obstacleX, scene.obstacleY, false);
+  };
+  shrinkRadius();
+
+  scene.obstacleVelX = 0.0;
+  scene.obstacleVelY = 0.0;
+};
+
+// const drag = (x, y) => {
+//   console.log(mouseDown);
+//   if (mouseDown) {
+//     const bounds = canvas.getBoundingClientRect();
+//     const mx = x - bounds.left - canvas.clientLeft;
+//     const my = y - bounds.top - canvas.clientTop;
+//     const scaledX = mx / cScale;
+//     const scaledY = (canvas.height - my) / cScale;
+//     setObstacle(scaledX, scaledY, false);
+//   } else startDrag(x, y);
+
+//   // startDrag(x, y);
+// };
+
 const drag = (x, y) => {
+  const now = performance.now();
+
+  if (prevMouseX !== null && prevMouseY !== null && prevTime !== null) {
+    const dt = (now - prevTime) / 1000; // Convert to seconds
+    if (dt > 0) {
+      const dx = (x - prevMouseX) / cScale;
+      const dy = (y - prevMouseY) / cScale;
+      const distance = Math.sqrt(dx * dx + dy * dy);
+      mouseVelocity = distance / dt;
+
+      // Calculate dynamic radius - scales with velocity but has smoothing
+      const targetRadius = Math.min(
+        maxRadius,
+        minRadius + mouseVelocity * velocitySensitivity,
+      );
+      scene.obstacleRadius = scene.obstacleRadius * 0.7 + targetRadius * 0.3; // Smoothing
+    }
+  }
+
+  prevMouseX = x;
+  prevMouseY = y;
+  prevTime = now;
+
   if (mouseDown) {
     const bounds = canvas.getBoundingClientRect();
     const mx = x - bounds.left - canvas.clientLeft;
@@ -1175,14 +1409,6 @@ const drag = (x, y) => {
   } else startDrag(x, y);
 };
 
-const endDrag = () => {
-  mouseDown = false;
-
-  scene.obstacleVelX = 0.0;
-  scene.obstacleVelY = 0.0;
-  0;
-};
-
 canvas.addEventListener('mousedown', (event) => {
   startDrag(event.x, event.y);
 });
@@ -1191,8 +1417,31 @@ canvas.addEventListener('mouseup', () => {
   endDrag();
 });
 
+// let prevMouse = { x: 0, y: 0 };
+
+let mouseMoveTimer;
+
 canvas.addEventListener('mousemove', (event) => {
+  clearTimeout(mouseMoveTimer);
   drag(event.x, event.y);
+
+  mouseMoveTimer = setTimeout(() => {
+    // console.log('hello');
+    // startDrag(event.x, event.y);
+    endDrag();
+  }, 100);
+});
+
+// Event handlers for scroll and mouse enter
+
+canvas.addEventListener('mouseenter', (event) => {
+  startDrag(event.x, event.y);
+});
+
+canvas.addEventListener('mouseleave', (event) => {
+  // console.log(event.x);
+  // endDrag();
+  startDrag(event.x, event.y);
 });
 
 // Handle chaos on focus and blur
