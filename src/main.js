@@ -5,10 +5,10 @@ const canvas = document.getElementById('canvas');
 const gl = canvas.getContext('webgl');
 // canvas.width = window.innerWidth - 20;
 // canvas.height = window.innerHeight - 20;
-canvas.width = wrapper.clientWidth + wrapper.clientWidth * 0.055;
-canvas.height = wrapper.clientHeight + wrapper.clientHeight * 0.041;
-// canvas.width = wrapper.clientWidth + wrapper.clientWidth * 0.15;
-// canvas.height = wrapper.clientHeight + wrapper.clientHeight * 0.09;
+// canvas.width = wrapper.clientWidth + wrapper.clientWidth * 0.055;
+// canvas.height = wrapper.clientHeight + wrapper.clientHeight * 0.041;
+canvas.width = wrapper.clientWidth + wrapper.clientWidth * 0.2;
+canvas.height = wrapper.clientHeight + wrapper.clientHeight * 0.27;
 
 canvas.focus();
 
@@ -1296,7 +1296,7 @@ let prevMouseX = null;
 let prevMouseY = null;
 let prevTime = null;
 let mouseVelocity = 0;
-const maxRadius = 0.7; // Maximum radius when moving fast
+const maxRadius = 0.4; // Maximum radius when moving fast
 const minRadius = 0.1; // Minimum radius when barely moving
 const velocitySensitivity = 0.03; // How quickly radius responds to velocity
 
