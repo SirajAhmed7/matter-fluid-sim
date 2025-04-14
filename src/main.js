@@ -275,12 +275,85 @@ class FlipFluid {
   //   }
   // }
 
+  // handleParticleCollisions(obstacleX, obstacleY, obstacleRadius) {
+  //   const h = 1.0 / this.fInvSpacing;
+  //   const r = this.particleRadius;
+  //   const or = obstacleRadius;
+  //   const minDist = obstacleRadius + r;
+  //   const minDist2 = minDist * minDist;
+
+  //   const minX = h + r;
+  //   const maxX = (this.fNumX - 1) * h - r;
+  //   const minY = h + r;
+  //   const maxY = (this.fNumY - 1) * h - r;
+
+  //   for (let i = 0; i < this.numParticles; i++) {
+  //     let x = this.particlePos[2 * i];
+  //     let y = this.particlePos[2 * i + 1];
+
+  //     const dx = x - obstacleX;
+  //     const dy = y - obstacleY;
+  //     const d2 = dx * dx + dy * dy;
+
+  //     // Improved obstacle collision - push particles out to surface
+  //     if (d2 < minDist2 && d2 > 0.0) {
+  //       const d = Math.sqrt(d2);
+  //       const correction = (minDist - d) / d;
+  //       const cx = dx * correction;
+  //       const cy = dy * correction;
+
+  //       // Move particle to surface
+  //       x = obstacleX + dx * (minDist / d);
+  //       y = obstacleY + dy * (minDist / d);
+
+  //       // Reflect velocity with damping
+  //       const dot =
+  //         dx * this.particleVel[2 * i] + dy * this.particleVel[2 * i + 1];
+  //       const damping = 0.8; // Energy loss on collision
+  //       this.particleVel[2 * i] =
+  //         (this.particleVel[2 * i] - ((1.0 + damping) * dot * dx) / d2) *
+  //         damping;
+  //       this.particleVel[2 * i + 1] =
+  //         (this.particleVel[2 * i + 1] - ((1.0 + damping) * dot * dy) / d2) *
+  //         damping;
+  //     }
+
+  //     // wall collisions
+  //     if (x < minX) {
+  //       x = minX;
+  //       this.particleVel[2 * i] = 0.0;
+  //     }
+  //     if (x > maxX) {
+  //       x = maxX;
+  //       this.particleVel[2 * i] = 0.0;
+  //     }
+  //     if (y < minY) {
+  //       y = minY;
+  //       this.particleVel[2 * i + 1] = 0.0;
+  //     }
+  //     if (y > maxY) {
+  //       y = maxY;
+  //       this.particleVel[2 * i + 1] = 0.0;
+  //     }
+
+  //     this.particlePos[2 * i] = x;
+  //     this.particlePos[2 * i + 1] = y;
+  //   }
+  // }
+
+  // With fixed obstacle
   handleParticleCollisions(obstacleX, obstacleY, obstacleRadius) {
     const h = 1.0 / this.fInvSpacing;
     const r = this.particleRadius;
-    const or = obstacleRadius;
-    const minDist = obstacleRadius + r;
-    const minDist2 = minDist * minDist;
+
+    // Moving circular obstacle properties
+    const minDistCircle = obstacleRadius + r;
+    const minDistCircle2 = minDistCircle * minDistCircle;
+
+    // // Fixed diamond obstacle properties (from scene)
+    // const diamond = scene.fixedObstacle;
+    // const diamondWidth = diamond.size * 2;
+    // const diamondHeight = diamond.size * 2;
 
     const minX = h + r;
     const maxX = (this.fNumX - 1) * h - r;
@@ -291,34 +364,112 @@ class FlipFluid {
       let x = this.particlePos[2 * i];
       let y = this.particlePos[2 * i + 1];
 
-      const dx = x - obstacleX;
-      const dy = y - obstacleY;
-      const d2 = dx * dx + dy * dy;
+      // Check collision with moving circular obstacle
+      const dxCircle = x - obstacleX;
+      const dyCircle = y - obstacleY;
+      const d2Circle = dxCircle * dxCircle + dyCircle * dyCircle;
 
-      // Improved obstacle collision - push particles out to surface
-      if (d2 < minDist2 && d2 > 0.0) {
-        const d = Math.sqrt(d2);
-        const correction = (minDist - d) / d;
-        const cx = dx * correction;
-        const cy = dy * correction;
+      if (d2Circle < minDistCircle2 && d2Circle > 0.0) {
+        const d = Math.sqrt(d2Circle);
+        const correction = (minDistCircle - d) / d;
+        const cx = dxCircle * correction;
+        const cy = dyCircle * correction;
 
         // Move particle to surface
-        x = obstacleX + dx * (minDist / d);
-        y = obstacleY + dy * (minDist / d);
+        x = obstacleX + dxCircle * (minDistCircle / d);
+        y = obstacleY + dyCircle * (minDistCircle / d);
 
         // Reflect velocity with damping
         const dot =
-          dx * this.particleVel[2 * i] + dy * this.particleVel[2 * i + 1];
-        const damping = 0.8; // Energy loss on collision
+          dxCircle * this.particleVel[2 * i] +
+          dyCircle * this.particleVel[2 * i + 1];
+        const damping = 0.8;
         this.particleVel[2 * i] =
-          (this.particleVel[2 * i] - ((1.0 + damping) * dot * dx) / d2) *
+          (this.particleVel[2 * i] -
+            ((1.0 + damping) * dot * dxCircle) / d2Circle) *
           damping;
         this.particleVel[2 * i + 1] =
-          (this.particleVel[2 * i + 1] - ((1.0 + damping) * dot * dy) / d2) *
+          (this.particleVel[2 * i + 1] -
+            ((1.0 + damping) * dot * dyCircle) / d2Circle) *
           damping;
       }
 
-      // wall collisions
+      // Add this to your handleParticleCollisions function
+      // const diamond = scene.fixedObstacle;
+      // const relX = x - diamond.x;
+      // const relY = y - diamond.y;
+
+      // // Scale coordinates to diamond's coordinate space
+      // const scaledX = relX / diamond.size;
+      // const scaledY = relY / diamond.size;
+
+      // // Define the 5-sided diamond edges
+      // const inUpperRight =
+      //   scaledY >= 0 && scaledX >= 0 && scaledY <= 0.7 - 0.4 * scaledX;
+      // const inLowerRight =
+      //   scaledY <= 0 && scaledX >= 0 && scaledY >= -1.0 + 1.3 * scaledX;
+      // const inLowerLeft =
+      //   scaledY <= 0 && scaledX <= 0 && scaledY >= -1.0 - 1.3 * scaledX;
+      // const inUpperLeft =
+      //   scaledY >= 0 && scaledX <= 0 && scaledY <= 0.7 + 0.4 * scaledX;
+
+      // if (inUpperRight || inLowerRight || inLowerLeft || inUpperLeft) {
+      //   // Find closest edge
+      //   let edgeNormalX, edgeNormalY;
+
+      //   if (scaledY > 0) {
+      //     // Top section
+      //     if (scaledX > 0) {
+      //       // Upper right edge (y = 0.7 - 0.4x)
+      //       edgeNormalX = 0.4;
+      //       edgeNormalY = 1.0;
+      //     } else {
+      //       // Upper left edge (y = 0.7 + 0.4x)
+      //       edgeNormalX = -0.4;
+      //       edgeNormalY = 1.0;
+      //     }
+      //   } else {
+      //     // Bottom section
+      //     if (scaledX > 0) {
+      //       // Lower right edge (y = -1.0 + 1.3x)
+      //       edgeNormalX = 1.3;
+      //       edgeNormalY = -1.0;
+      //     } else {
+      //       // Lower left edge (y = -1.0 - 1.3x)
+      //       edgeNormalX = -1.3;
+      //       edgeNormalY = -1.0;
+      //     }
+      //   }
+
+      //   // Normalize the normal vector
+      //   const len = Math.sqrt(
+      //     edgeNormalX * edgeNormalX + edgeNormalY * edgeNormalY,
+      //   );
+      //   edgeNormalX /= len;
+      //   edgeNormalY /= len;
+
+      //   // Push particle to surface
+      //   const surfaceX = diamond.x + edgeNormalX * diamond.size;
+      //   const surfaceY = diamond.y + edgeNormalY * diamond.size;
+      //   const pushDist = r * 1.1; // Small offset
+
+      //   x = surfaceX + edgeNormalX * pushDist;
+      //   y = surfaceY + edgeNormalY * pushDist;
+
+      //   // Reflect velocity with damping
+      //   const dot =
+      //     this.particleVel[2 * i] * edgeNormalX +
+      //     this.particleVel[2 * i + 1] * edgeNormalY;
+      //   const damping = 0.8;
+      //   this.particleVel[2 * i] =
+      //     (this.particleVel[2 * i] - (1.0 + damping) * dot * edgeNormalX) *
+      //     damping;
+      //   this.particleVel[2 * i + 1] =
+      //     (this.particleVel[2 * i + 1] - (1.0 + damping) * dot * edgeNormalY) *
+      //     damping;
+      // }
+
+      // Wall collisions (keep existing)
       if (x < minX) {
         x = minX;
         this.particleVel[2 * i] = 0.0;
@@ -757,6 +908,14 @@ const scene = {
   showParticles: true,
   showGrid: false,
   fluid: null,
+  fixedObstacle: {
+    x: simWidth / 2,
+    y: simHeight / 2,
+    size: 0.35, // Half-width/height of the diamond
+    show: false,
+    color: [1.0, 1.0, 1.0], // White color
+    textureIntensity: 1.0,
+  },
 };
 
 function setupScene() {
@@ -796,6 +955,10 @@ function setupScene() {
     maxParticles,
   ));
 
+  // function initTextures() {
+  diamondTexture = loadTexture(gl, 'diamond_vector.svg'); // Path to your SVG
+  // }
+
   // create particles
   f.numParticles = numX * numY;
   let p = 0;
@@ -813,6 +976,12 @@ function setupScene() {
       f.s[i * n + j] = i === 0 || i === f.fNumX - 1 || j === 0 ? 0.0 : 1.0;
     }
   }
+
+  // For fixed obstacle
+  scene.fixedObstacle.x = simWidth / 2;
+  scene.fixedObstacle.y = simHeight / 2;
+  scene.fixedObstacle.size = 0.35;
+  scene.fixedObstacle.show = false;
 
   setObstacle(3.0, 2.0, true);
 }
@@ -926,6 +1095,38 @@ const meshFragmentShader = `
   }
 `;
 
+const texturedDiamondVertexShader = `
+  attribute vec2 attrPosition;
+  attribute vec2 attrTexCoord;
+  uniform vec2 domainSize;
+  uniform vec2 translation;
+  uniform float scale;
+  
+  varying vec2 fragTexCoord;
+  
+  void main() {
+    vec2 v = translation + attrPosition * scale;
+    vec4 screenTransform = 
+      vec4(2.0 / domainSize.x, 2.0 / domainSize.y, -1.0, -1.0);
+    gl_Position =
+      vec4(v * screenTransform.xy + screenTransform.zw, 0.0, 1.0);
+    
+    fragTexCoord = attrTexCoord;
+  }
+`;
+
+const texturedDiamondFragmentShader = `
+  precision mediump float;
+  varying vec2 fragTexCoord;
+  uniform sampler2D texture;
+  
+  void main() {
+    vec4 texColor = texture2D(texture, fragTexCoord);
+    if (texColor.a < 0.1) discard; // Discard transparent pixels
+    gl_FragColor = texColor;
+  }
+`;
+
 const createShader = (gl, vsSource, fsSource) => {
   gl.enable(gl.BLEND);
   gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
@@ -964,6 +1165,129 @@ let gridVertBuffer = null;
 let gridColorBuffer = null;
 let diskVertBuffer = null;
 let diskIdBuffer = null;
+// Add these with your other WebGL buffer declarations
+let diamondVertBuffer = null;
+let diamondIdBuffer = null;
+let diamondTexture = null;
+let diamondTexCoordsBuffer = null;
+let texturedDiamondShader = null;
+
+function initDiamondGeometry() {
+  // 5-sided diamond vertices (Superman logo style)
+  const vertices = new Float32Array([
+    0.0,
+    1.0, // top center
+    0.7,
+    0.3, // upper right
+    0.5,
+    -1.0, // bottom right
+    -0.5,
+    -1.0, // bottom left
+    -0.7,
+    0.3, // upper left
+  ]);
+
+  // Texture coordinates mapped to each vertex
+  const texCoords = new Float32Array([
+    0.5,
+    0.0, // top center
+    0.85,
+    0.4, // upper right
+    0.7,
+    1.0, // bottom right
+    0.3,
+    1.0, // bottom left
+    0.15,
+    0.4, // upper left
+  ]);
+
+  // Indices for triangle drawing (creates 3 triangles)
+  const indices = new Uint16Array([
+    0,
+    1,
+    2, // top -> upper right -> bottom right
+    0,
+    2,
+    3, // top -> bottom right -> bottom left
+    0,
+    3,
+    4, // top -> bottom left -> upper left
+  ]);
+
+  // Create and fill buffers
+  diamondVertBuffer = gl.createBuffer();
+  gl.bindBuffer(gl.ARRAY_BUFFER, diamondVertBuffer);
+  gl.bufferData(gl.ARRAY_BUFFER, vertices, gl.STATIC_DRAW);
+
+  diamondTexCoordsBuffer = gl.createBuffer();
+  gl.bindBuffer(gl.ARRAY_BUFFER, diamondTexCoordsBuffer);
+  gl.bufferData(gl.ARRAY_BUFFER, texCoords, gl.STATIC_DRAW);
+
+  diamondIdBuffer = gl.createBuffer();
+  gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, diamondIdBuffer);
+  gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, indices, gl.STATIC_DRAW);
+}
+
+function drawDiamondObstacle() {
+  if (!scene.fixedObstacle.show || !diamondTexture) return;
+
+  if (texturedDiamondShader === null) {
+    texturedDiamondShader = createShader(
+      gl,
+      texturedDiamondVertexShader,
+      texturedDiamondFragmentShader,
+    );
+  }
+
+  if (diamondVertBuffer === null) {
+    initDiamondGeometry();
+  }
+
+  gl.useProgram(texturedDiamondShader);
+
+  // Set uniforms
+  gl.uniform2f(
+    gl.getUniformLocation(texturedDiamondShader, 'domainSize'),
+    simWidth,
+    simHeight,
+  );
+  gl.uniform2f(
+    gl.getUniformLocation(texturedDiamondShader, 'translation'),
+    scene.fixedObstacle.x,
+    scene.fixedObstacle.y,
+  );
+  gl.uniform1f(
+    gl.getUniformLocation(texturedDiamondShader, 'scale'),
+    scene.fixedObstacle.size,
+  );
+
+  // Bind texture
+  gl.activeTexture(gl.TEXTURE0);
+  gl.bindTexture(gl.TEXTURE_2D, diamondTexture);
+  gl.uniform1i(gl.getUniformLocation(texturedDiamondShader, 'texture'), 0);
+
+  // Set up attributes
+  const posLoc = gl.getAttribLocation(texturedDiamondShader, 'attrPosition');
+  gl.enableVertexAttribArray(posLoc);
+  gl.bindBuffer(gl.ARRAY_BUFFER, diamondVertBuffer);
+  gl.vertexAttribPointer(posLoc, 2, gl.FLOAT, false, 0, 0);
+
+  const texCoordLoc = gl.getAttribLocation(
+    texturedDiamondShader,
+    'attrTexCoord',
+  );
+  gl.enableVertexAttribArray(texCoordLoc);
+  gl.bindBuffer(gl.ARRAY_BUFFER, diamondTexCoordsBuffer);
+  gl.vertexAttribPointer(texCoordLoc, 2, gl.FLOAT, false, 0, 0);
+
+  // Draw 3 triangles (9 indices)
+  gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, diamondIdBuffer);
+  gl.drawElements(gl.TRIANGLES, 9, gl.UNSIGNED_SHORT, 0);
+
+  // Clean up
+  gl.disableVertexAttribArray(posLoc);
+  gl.disableVertexAttribArray(texCoordLoc);
+}
 
 function draw() {
   gl.clearColor(0.0, 0.0, 0.0, 1.0);
@@ -1035,6 +1359,65 @@ function draw() {
   if (!logoTexture) {
     logoTexture = loadTexture(gl, '/rare_logo.png'); // Update this path
   }
+
+  // // Draw fixed diamond obstacle
+  // if (scene.fixedObstacle.show) {
+  //   // Initialize diamond buffers if not done yet
+  //   if (diamondVertBuffer === null) {
+  //     diamondVertBuffer = gl.createBuffer();
+  //     const diamondVerts = new Float32Array([
+  //       0,
+  //       1, // top point
+  //       1,
+  //       0, // right point
+  //       0,
+  //       -1, // bottom point
+  //       -1,
+  //       0, // left point
+  //     ]);
+  //     gl.bindBuffer(gl.ARRAY_BUFFER, diamondVertBuffer);
+  //     gl.bufferData(gl.ARRAY_BUFFER, diamondVerts, gl.STATIC_DRAW);
+
+  //     diamondIdBuffer = gl.createBuffer();
+  //     const diamondIds = new Uint16Array([0, 1, 2, 0, 2, 3, 0, 3, 1]);
+  //     gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, diamondIdBuffer);
+  //     gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, diamondIds, gl.STATIC_DRAW);
+  //   }
+
+  //   gl.useProgram(meshShader);
+  //   gl.uniform2f(
+  //     gl.getUniformLocation(meshShader, 'domainSize'),
+  //     simWidth,
+  //     simHeight,
+  //   );
+  //   gl.uniform3f(
+  //     gl.getUniformLocation(meshShader, 'color'),
+  //     scene.fixedObstacle.color[0],
+  //     scene.fixedObstacle.color[1],
+  //     scene.fixedObstacle.color[2],
+  //   );
+  //   gl.uniform2f(
+  //     gl.getUniformLocation(meshShader, 'translation'),
+  //     scene.fixedObstacle.x,
+  //     scene.fixedObstacle.y,
+  //   );
+  //   gl.uniform1f(
+  //     gl.getUniformLocation(meshShader, 'scale'),
+  //     scene.fixedObstacle.size,
+  //   );
+
+  //   const posLoc = gl.getAttribLocation(meshShader, 'attrPosition');
+  //   gl.enableVertexAttribArray(posLoc);
+  //   gl.bindBuffer(gl.ARRAY_BUFFER, diamondVertBuffer);
+  //   gl.vertexAttribPointer(posLoc, 2, gl.FLOAT, false, 0, 0);
+
+  //   gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, diamondIdBuffer);
+  //   gl.drawElements(gl.TRIANGLES, 9, gl.UNSIGNED_SHORT, 0);
+
+  //   gl.disableVertexAttribArray(posLoc);
+  // }
+
+  // drawDiamondObstacle();
 
   // water
   // if (scene.showParticles) {
@@ -1500,6 +1883,19 @@ const toggleStart = () => {
 
 const simulate = () => {
   if (!scene.paused) {
+    // scene.fluid.simulate(
+    //   scene.dt,
+    //   scene.gravity,
+    //   scene.flipRatio,
+    //   scene.numPressureIters,
+    //   scene.numParticleIters,
+    //   scene.overRelaxation,
+    //   scene.compensateDrift,
+    //   scene.separateParticles,
+    //   scene.obstacleX,
+    //   scene.obstacleY,
+    //   scene.obstacleRadius,
+    // );
     scene.fluid.simulate(
       scene.dt,
       scene.gravity,
