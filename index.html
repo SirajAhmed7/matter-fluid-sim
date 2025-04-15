@@ -5,7 +5,6 @@
     <link rel="icon" type="image/svg+xml" href="/vite.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Vite App</title>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.6.0/p5.min.js"></script>
   </head>
   <body>
     <div id="app">
@@ -20,3 +19,238 @@
     <!-- <script src="/src/sketch.js"></script> -->
   </body>
 </html>
+
+<!-- <!doctype html>
+<html>
+  <head>
+    <title>Diamond Shape in WebGL</title>
+    <style>
+      body {
+        margin: 0;
+        overflow: hidden;
+        background-color: #222;
+      }
+      canvas {
+        width: 100%;
+        height: 100%;
+        display: block;
+      }
+    </style>
+  </head>
+  <body>
+    <canvas id="glCanvas"></canvas>
+    <script>
+      // Initialize WebGL context
+      const canvas = document.getElementById('glCanvas');
+      const gl = canvas.getContext('webgl');
+
+      if (!gl) {
+        alert('Unable to initialize WebGL. Your browser may not support it.');
+      }
+
+      // Set canvas size to fill window
+      function resizeCanvas() {
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+        gl.viewport(0, 0, canvas.width, canvas.height);
+      }
+      window.addEventListener('resize', resizeCanvas);
+      resizeCanvas();
+
+      // Vertex shader program
+      const vsSource = `
+            attribute vec4 aVertexPosition;
+            attribute vec4 aVertexColor;
+            
+            varying lowp vec4 vColor;
+            
+            void main() {
+                gl_Position = aVertexPosition;
+                vColor = aVertexColor;
+            }
+        `;
+
+      // Fragment shader program
+      const fsSource = `
+            varying lowp vec4 vColor;
+            
+            void main() {
+                gl_FragColor = vColor;
+            }
+        `;
+
+      // Initialize shader program
+      function initShaderProgram(gl, vsSource, fsSource) {
+        const vertexShader = loadShader(gl, gl.VERTEX_SHADER, vsSource);
+        const fragmentShader = loadShader(gl, gl.FRAGMENT_SHADER, fsSource);
+
+        // Create the shader program
+        const shaderProgram = gl.createProgram();
+        gl.attachShader(shaderProgram, vertexShader);
+        gl.attachShader(shaderProgram, fragmentShader);
+        gl.linkProgram(shaderProgram);
+
+        // Check if creating the shader program failed
+        if (!gl.getProgramParameter(shaderProgram, gl.LINK_STATUS)) {
+          alert(
+            'Unable to initialize the shader program: ' +
+              gl.getProgramInfoLog(shaderProgram),
+          );
+          return null;
+        }
+
+        return shaderProgram;
+      }
+
+      // Creates a shader of the given type, uploads the source and compiles it
+      function loadShader(gl, type, source) {
+        const shader = gl.createShader(type);
+        gl.shaderSource(shader, source);
+        gl.compileShader(shader);
+
+        // Check if the compilation failed
+        if (!gl.getShaderParameter(shader, gl.COMPILE_STATUS)) {
+          alert(
+            'An error occurred compiling the shaders: ' +
+              gl.getShaderInfoLog(shader),
+          );
+          gl.deleteShader(shader);
+          return null;
+        }
+
+        return shader;
+      }
+
+      // Function to create the diamond shape as shown in the image
+      function createDiamondShape() {
+        // Create vertices for the diamond shape as shown in the image
+        // It has a flat top and pointed bottom
+        const vertices = [];
+        const colors = [];
+
+        // Center vertex (for a fan-like shape)
+        vertices.push(0.0, 0.0, 0.0);
+        colors.push(1.0, 1.0, 1.0, 1.0); // White center
+
+        // Define the diamond shape:
+        // Top-left vertex
+        vertices.push(-0.5, 0.3, 0.0);
+        colors.push(1.0, 1.0, 1.0, 1.0);
+
+        // Top-middle (flat top)
+        vertices.push(0.0, 0.3, 0.0);
+        colors.push(1.0, 1.0, 1.0, 1.0);
+
+        // Top-right vertex
+        vertices.push(0.5, 0.3, 0.0);
+        colors.push(1.0, 1.0, 1.0, 1.0);
+
+        // Right point
+        vertices.push(0.7, 0.0, 0.0);
+        colors.push(1.0, 1.0, 1.0, 1.0);
+
+        // Bottom-right diagonal
+        vertices.push(0.35, -0.35, 0.0);
+        colors.push(1.0, 1.0, 1.0, 1.0);
+
+        // Bottom point
+        vertices.push(0.0, -0.7, 0.0);
+        colors.push(1.0, 1.0, 1.0, 1.0);
+
+        // Bottom-left diagonal
+        vertices.push(-0.35, -0.35, 0.0);
+        colors.push(1.0, 1.0, 1.0, 1.0);
+
+        // Left point
+        vertices.push(-0.7, 0.0, 0.0);
+        colors.push(1.0, 1.0, 1.0, 1.0);
+
+        // Back to the first vertex to close the shape
+        vertices.push(-0.5, 0.3, 0.0);
+        colors.push(1.0, 1.0, 1.0, 1.0);
+
+        return {
+          vertices: vertices,
+          colors: colors,
+          vertexCount: 10, // Center + 8 points + closing point
+        };
+      }
+
+      // Initialize the shader program
+      const shaderProgram = initShaderProgram(gl, vsSource, fsSource);
+
+      // Create the shader data
+      const programInfo = {
+        program: shaderProgram,
+        attribLocations: {
+          vertexPosition: gl.getAttribLocation(
+            shaderProgram,
+            'aVertexPosition',
+          ),
+          vertexColor: gl.getAttribLocation(shaderProgram, 'aVertexColor'),
+        },
+      };
+
+      // Create the diamond shape data
+      const diamondData = createDiamondShape();
+
+      // Create buffers for the diamond vertices
+      const positionBuffer = gl.createBuffer();
+      gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffer);
+      gl.bufferData(
+        gl.ARRAY_BUFFER,
+        new Float32Array(diamondData.vertices),
+        gl.STATIC_DRAW,
+      );
+
+      // Create buffers for the diamond colors
+      const colorBuffer = gl.createBuffer();
+      gl.bindBuffer(gl.ARRAY_BUFFER, colorBuffer);
+      gl.bufferData(
+        gl.ARRAY_BUFFER,
+        new Float32Array(diamondData.colors),
+        gl.STATIC_DRAW,
+      );
+
+      // Draw the scene
+      function drawScene() {
+        // Clear the canvas
+        gl.clearColor(0.2, 0.2, 0.2, 1.0); // Dark gray background to match the image
+        gl.clear(gl.COLOR_BUFFER_BIT);
+
+        // Use the shader program
+        gl.useProgram(programInfo.program);
+
+        // Set up the position attribute
+        gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffer);
+        gl.vertexAttribPointer(
+          programInfo.attribLocations.vertexPosition,
+          3, // 3 components per vertex (x,y,z)
+          gl.FLOAT, // Type of the data
+          false, // Don't normalize
+          0, // Stride (0 = use type and numComponents)
+          0, // Offset
+        );
+        gl.enableVertexAttribArray(programInfo.attribLocations.vertexPosition);
+
+        // Set up the color attribute
+        gl.bindBuffer(gl.ARRAY_BUFFER, colorBuffer);
+        gl.vertexAttribPointer(
+          programInfo.attribLocations.vertexColor,
+          4, // 4 components per color (r,g,b,a)
+          gl.FLOAT, // Type of the data
+          false, // Don't normalize
+          0, // Stride (0 = use type and numComponents)
+          0, // Offset
+        );
+        gl.enableVertexAttribArray(programInfo.attribLocations.vertexColor);
+
+        // Draw the diamond as a triangle fan
+        gl.drawArrays(gl.TRIANGLE_FAN, 0, diamondData.vertexCount);
+      }
+
+      // Run the drawing function
+      drawScene();
+    </script>
+  </body>
+</html> -->

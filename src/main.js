@@ -394,81 +394,6 @@ class FlipFluid {
           damping;
       }
 
-      // Add this to your handleParticleCollisions function
-      // const diamond = scene.fixedObstacle;
-      // const relX = x - diamond.x;
-      // const relY = y - diamond.y;
-
-      // // Scale coordinates to diamond's coordinate space
-      // const scaledX = relX / diamond.size;
-      // const scaledY = relY / diamond.size;
-
-      // // Define the 5-sided diamond edges
-      // const inUpperRight =
-      //   scaledY >= 0 && scaledX >= 0 && scaledY <= 0.7 - 0.4 * scaledX;
-      // const inLowerRight =
-      //   scaledY <= 0 && scaledX >= 0 && scaledY >= -1.0 + 1.3 * scaledX;
-      // const inLowerLeft =
-      //   scaledY <= 0 && scaledX <= 0 && scaledY >= -1.0 - 1.3 * scaledX;
-      // const inUpperLeft =
-      //   scaledY >= 0 && scaledX <= 0 && scaledY <= 0.7 + 0.4 * scaledX;
-
-      // if (inUpperRight || inLowerRight || inLowerLeft || inUpperLeft) {
-      //   // Find closest edge
-      //   let edgeNormalX, edgeNormalY;
-
-      //   if (scaledY > 0) {
-      //     // Top section
-      //     if (scaledX > 0) {
-      //       // Upper right edge (y = 0.7 - 0.4x)
-      //       edgeNormalX = 0.4;
-      //       edgeNormalY = 1.0;
-      //     } else {
-      //       // Upper left edge (y = 0.7 + 0.4x)
-      //       edgeNormalX = -0.4;
-      //       edgeNormalY = 1.0;
-      //     }
-      //   } else {
-      //     // Bottom section
-      //     if (scaledX > 0) {
-      //       // Lower right edge (y = -1.0 + 1.3x)
-      //       edgeNormalX = 1.3;
-      //       edgeNormalY = -1.0;
-      //     } else {
-      //       // Lower left edge (y = -1.0 - 1.3x)
-      //       edgeNormalX = -1.3;
-      //       edgeNormalY = -1.0;
-      //     }
-      //   }
-
-      //   // Normalize the normal vector
-      //   const len = Math.sqrt(
-      //     edgeNormalX * edgeNormalX + edgeNormalY * edgeNormalY,
-      //   );
-      //   edgeNormalX /= len;
-      //   edgeNormalY /= len;
-
-      //   // Push particle to surface
-      //   const surfaceX = diamond.x + edgeNormalX * diamond.size;
-      //   const surfaceY = diamond.y + edgeNormalY * diamond.size;
-      //   const pushDist = r * 1.1; // Small offset
-
-      //   x = surfaceX + edgeNormalX * pushDist;
-      //   y = surfaceY + edgeNormalY * pushDist;
-
-      //   // Reflect velocity with damping
-      //   const dot =
-      //     this.particleVel[2 * i] * edgeNormalX +
-      //     this.particleVel[2 * i + 1] * edgeNormalY;
-      //   const damping = 0.8;
-      //   this.particleVel[2 * i] =
-      //     (this.particleVel[2 * i] - (1.0 + damping) * dot * edgeNormalX) *
-      //     damping;
-      //   this.particleVel[2 * i + 1] =
-      //     (this.particleVel[2 * i + 1] - (1.0 + damping) * dot * edgeNormalY) *
-      //     damping;
-      // }
-
       // Wall collisions (keep existing)
       if (x < minX) {
         x = minX;
@@ -981,7 +906,7 @@ function setupScene() {
   scene.fixedObstacle.x = simWidth / 2;
   scene.fixedObstacle.y = simHeight / 2;
   scene.fixedObstacle.size = 0.35;
-  scene.fixedObstacle.show = false;
+  scene.fixedObstacle.show = true;
 
   setObstacle(3.0, 2.0, true);
 }
@@ -1095,36 +1020,26 @@ const meshFragmentShader = `
   }
 `;
 
-const texturedDiamondVertexShader = `
-  attribute vec2 attrPosition;
-  attribute vec2 attrTexCoord;
-  uniform vec2 domainSize;
-  uniform vec2 translation;
-  uniform float scale;
-  
-  varying vec2 fragTexCoord;
-  
-  void main() {
-    vec2 v = translation + attrPosition * scale;
-    vec4 screenTransform = 
-      vec4(2.0 / domainSize.x, 2.0 / domainSize.y, -1.0, -1.0);
-    gl_Position =
-      vec4(v * screenTransform.xy + screenTransform.zw, 0.0, 1.0);
-    
-    fragTexCoord = attrTexCoord;
-  }
+// Vertex shader program
+const diamondVertexShader = `
+attribute vec4 aVertexPosition;
+attribute vec4 aVertexColor;
+
+varying lowp vec4 vColor;
+
+void main() {
+    gl_Position = aVertexPosition;
+    vColor = aVertexColor;
+}
 `;
 
-const texturedDiamondFragmentShader = `
-  precision mediump float;
-  varying vec2 fragTexCoord;
-  uniform sampler2D texture;
-  
-  void main() {
-    vec4 texColor = texture2D(texture, fragTexCoord);
-    if (texColor.a < 0.1) discard; // Discard transparent pixels
-    gl_FragColor = texColor;
-  }
+// Fragment shader program
+const diamondFratmentShader = `
+varying lowp vec4 vColor;
+
+void main() {
+    gl_FragColor = vColor;
+}
 `;
 
 const createShader = (gl, vsSource, fsSource) => {
@@ -1172,121 +1087,179 @@ let diamondTexture = null;
 let diamondTexCoordsBuffer = null;
 let texturedDiamondShader = null;
 
-function initDiamondGeometry() {
-  // 5-sided diamond vertices (Superman logo style)
-  const vertices = new Float32Array([
-    0.0,
-    1.0, // top center
-    0.7,
-    0.3, // upper right
-    0.5,
-    -1.0, // bottom right
-    -0.5,
-    -1.0, // bottom left
-    -0.7,
-    0.3, // upper left
-  ]);
+function createDiamondShape() {
+  // Create vertices for the diamond shape as shown in the image
+  // Even narrower than before
+  const vertices = [];
+  const colors = [];
 
-  // Texture coordinates mapped to each vertex
-  const texCoords = new Float32Array([
-    0.5,
-    0.0, // top center
-    0.85,
-    0.4, // upper right
-    0.7,
-    1.0, // bottom right
-    0.3,
-    1.0, // bottom left
-    0.15,
-    0.4, // upper left
-  ]);
+  const yTransform = 0.25;
 
-  // Indices for triangle drawing (creates 3 triangles)
-  const indices = new Uint16Array([
-    0,
-    1,
-    2, // top -> upper right -> bottom right
-    0,
-    2,
-    3, // top -> bottom right -> bottom left
-    0,
-    3,
-    4, // top -> bottom left -> upper left
-  ]);
+  // Center vertex (for a fan-like shape)
+  vertices.push(0.0, 0.0 + yTransform, 0.0);
+  colors.push(1.0, 1.0, 1.0, 1.0); // White center
 
-  // Create and fill buffers
-  diamondVertBuffer = gl.createBuffer();
-  gl.bindBuffer(gl.ARRAY_BUFFER, diamondVertBuffer);
-  gl.bufferData(gl.ARRAY_BUFFER, vertices, gl.STATIC_DRAW);
+  // Define the diamond shape:
+  // Top-left vertex - even narrower
+  vertices.push(-0.28, 0.3 + yTransform, 0.0);
+  colors.push(1.0, 1.0, 1.0, 1.0);
 
-  diamondTexCoordsBuffer = gl.createBuffer();
-  gl.bindBuffer(gl.ARRAY_BUFFER, diamondTexCoordsBuffer);
-  gl.bufferData(gl.ARRAY_BUFFER, texCoords, gl.STATIC_DRAW);
+  // Top-middle (flat top)
+  vertices.push(0.0, 0.3 + yTransform, 0.0);
+  colors.push(1.0, 1.0, 1.0, 1.0);
 
-  diamondIdBuffer = gl.createBuffer();
-  gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, diamondIdBuffer);
-  gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, indices, gl.STATIC_DRAW);
+  // Top-right vertex - even narrower
+  vertices.push(0.28, 0.3 + yTransform, 0.0);
+  colors.push(1.0, 1.0, 1.0, 1.0);
+
+  // Right point - even narrower
+  vertices.push(0.4, 0.0 + yTransform, 0.0);
+  colors.push(1.0, 1.0, 1.0, 1.0);
+
+  // Bottom-right diagonal - even narrower
+  vertices.push(0.2, -0.35 + yTransform, 0.0);
+  colors.push(1.0, 1.0, 1.0, 1.0);
+
+  // Bottom point - same height
+  vertices.push(0.0, -0.7 + yTransform, 0.0);
+  colors.push(1.0, 1.0, 1.0, 1.0);
+
+  // Bottom-left diagonal - even narrower
+  vertices.push(-0.2, -0.35 + yTransform, 0.0);
+  colors.push(1.0, 1.0, 1.0, 1.0);
+
+  // Left point - even narrower
+  vertices.push(-0.4, 0.0 + yTransform, 0.0);
+  colors.push(1.0, 1.0, 1.0, 1.0);
+
+  // Back to the first vertex to close the shape
+  vertices.push(-0.28, 0.3 + yTransform, 0.0);
+  colors.push(1.0, 1.0, 1.0, 1.0);
+
+  return {
+    vertices: vertices,
+    colors: colors,
+    vertexCount: 10, // Center + 8 points + closing point
+  };
 }
 
 function drawDiamondObstacle() {
   if (!scene.fixedObstacle.show || !diamondTexture) return;
 
-  if (texturedDiamondShader === null) {
-    texturedDiamondShader = createShader(
-      gl,
-      texturedDiamondVertexShader,
-      texturedDiamondFragmentShader,
-    );
+  // Creates a shader of the given type, uploads the source and compiles it
+  function loadShader(gl, type, source) {
+    const shader = gl.createShader(type);
+    gl.shaderSource(shader, source);
+    gl.compileShader(shader);
+
+    // Check if the compilation failed
+    if (!gl.getShaderParameter(shader, gl.COMPILE_STATUS)) {
+      alert(
+        'An error occurred compiling the shaders: ' +
+          gl.getShaderInfoLog(shader),
+      );
+      gl.deleteShader(shader);
+      return null;
+    }
+
+    return shader;
   }
 
-  if (diamondVertBuffer === null) {
-    initDiamondGeometry();
+  // Initialize shader program
+  function initShaderProgram(gl, vsSource, fsSource) {
+    const vertexShader = loadShader(gl, gl.VERTEX_SHADER, vsSource);
+    const fragmentShader = loadShader(gl, gl.FRAGMENT_SHADER, fsSource);
+
+    // Create the shader program
+    const shaderProgram = gl.createProgram();
+    gl.attachShader(shaderProgram, vertexShader);
+    gl.attachShader(shaderProgram, fragmentShader);
+    gl.linkProgram(shaderProgram);
+
+    // Check if creating the shader program failed
+    if (!gl.getProgramParameter(shaderProgram, gl.LINK_STATUS)) {
+      alert(
+        'Unable to initialize the shader program: ' +
+          gl.getProgramInfoLog(shaderProgram),
+      );
+      return null;
+    }
+
+    return shaderProgram;
   }
 
-  gl.useProgram(texturedDiamondShader);
-
-  // Set uniforms
-  gl.uniform2f(
-    gl.getUniformLocation(texturedDiamondShader, 'domainSize'),
-    simWidth,
-    simHeight,
-  );
-  gl.uniform2f(
-    gl.getUniformLocation(texturedDiamondShader, 'translation'),
-    scene.fixedObstacle.x,
-    scene.fixedObstacle.y,
-  );
-  gl.uniform1f(
-    gl.getUniformLocation(texturedDiamondShader, 'scale'),
-    scene.fixedObstacle.size,
+  // Initialize the shader program
+  const shaderProgram = createShader(
+    gl,
+    diamondVertexShader,
+    diamondFratmentShader,
   );
 
-  // Bind texture
-  gl.activeTexture(gl.TEXTURE0);
-  gl.bindTexture(gl.TEXTURE_2D, diamondTexture);
-  gl.uniform1i(gl.getUniformLocation(texturedDiamondShader, 'texture'), 0);
+  // Create the shader data
+  const programInfo = {
+    program: shaderProgram,
+    attribLocations: {
+      vertexPosition: gl.getAttribLocation(shaderProgram, 'aVertexPosition'),
+      vertexColor: gl.getAttribLocation(shaderProgram, 'aVertexColor'),
+    },
+  };
 
-  // Set up attributes
-  const posLoc = gl.getAttribLocation(texturedDiamondShader, 'attrPosition');
-  gl.enableVertexAttribArray(posLoc);
-  gl.bindBuffer(gl.ARRAY_BUFFER, diamondVertBuffer);
-  gl.vertexAttribPointer(posLoc, 2, gl.FLOAT, false, 0, 0);
+  // console.log(programInfo);
 
-  const texCoordLoc = gl.getAttribLocation(
-    texturedDiamondShader,
-    'attrTexCoord',
+  // Create the diamond shape data
+  const diamondData = createDiamondShape();
+
+  // Clear the canvas
+  // gl.clearColor(0.2, 0.2, 0.2, 1.0); // Dark gray background to match the image
+  gl.clear(gl.COLOR_BUFFER_BIT);
+
+  // Use the shader program
+  gl.useProgram(programInfo.program);
+
+  // Create buffers for the diamond vertices
+  const positionBuffer = gl.createBuffer();
+  gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffer);
+  gl.bufferData(
+    gl.ARRAY_BUFFER,
+    new Float32Array(diamondData.vertices),
+    gl.STATIC_DRAW,
   );
-  gl.enableVertexAttribArray(texCoordLoc);
-  gl.bindBuffer(gl.ARRAY_BUFFER, diamondTexCoordsBuffer);
-  gl.vertexAttribPointer(texCoordLoc, 2, gl.FLOAT, false, 0, 0);
 
-  // Draw 3 triangles (9 indices)
-  gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, diamondIdBuffer);
-  gl.drawElements(gl.TRIANGLES, 9, gl.UNSIGNED_SHORT, 0);
+  // Create buffers for the diamond colors
+  const colorBuffer = gl.createBuffer();
+  gl.bindBuffer(gl.ARRAY_BUFFER, colorBuffer);
+  gl.bufferData(
+    gl.ARRAY_BUFFER,
+    new Float32Array(diamondData.colors),
+    gl.STATIC_DRAW,
+  );
 
-  // Clean up
-  gl.disableVertexAttribArray(posLoc);
-  gl.disableVertexAttribArray(texCoordLoc);
+  // Set up the position attribute
+  gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffer);
+  gl.vertexAttribPointer(
+    programInfo.attribLocations.vertexPosition,
+    3, // 3 components per vertex (x,y,z)
+    gl.FLOAT, // Type of the data
+    false, // Don't normalize
+    0, // Stride (0 = use type and numComponents)
+    0, // Offset
+  );
+  gl.enableVertexAttribArray(programInfo.attribLocations.vertexPosition);
+
+  // Set up the color attribute
+  gl.bindBuffer(gl.ARRAY_BUFFER, colorBuffer);
+  gl.vertexAttribPointer(
+    programInfo.attribLocations.vertexColor,
+    4, // 4 components per color (r,g,b,a)
+    gl.FLOAT, // Type of the data
+    false, // Don't normalize
+    0, // Stride (0 = use type and numComponents)
+    0, // Offset
+  );
+  gl.enableVertexAttribArray(programInfo.attribLocations.vertexColor);
+
+  // Draw the diamond as a triangle fan
+  gl.drawArrays(gl.TRIANGLE_FAN, 0, diamondData.vertexCount);
 }
 
 function draw() {
@@ -1361,103 +1334,10 @@ function draw() {
   }
 
   // // Draw fixed diamond obstacle
-  // if (scene.fixedObstacle.show) {
-  //   // Initialize diamond buffers if not done yet
-  //   if (diamondVertBuffer === null) {
-  //     diamondVertBuffer = gl.createBuffer();
-  //     const diamondVerts = new Float32Array([
-  //       0,
-  //       1, // top point
-  //       1,
-  //       0, // right point
-  //       0,
-  //       -1, // bottom point
-  //       -1,
-  //       0, // left point
-  //     ]);
-  //     gl.bindBuffer(gl.ARRAY_BUFFER, diamondVertBuffer);
-  //     gl.bufferData(gl.ARRAY_BUFFER, diamondVerts, gl.STATIC_DRAW);
 
-  //     diamondIdBuffer = gl.createBuffer();
-  //     const diamondIds = new Uint16Array([0, 1, 2, 0, 2, 3, 0, 3, 1]);
-  //     gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, diamondIdBuffer);
-  //     gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, diamondIds, gl.STATIC_DRAW);
-  //   }
-
-  //   gl.useProgram(meshShader);
-  //   gl.uniform2f(
-  //     gl.getUniformLocation(meshShader, 'domainSize'),
-  //     simWidth,
-  //     simHeight,
-  //   );
-  //   gl.uniform3f(
-  //     gl.getUniformLocation(meshShader, 'color'),
-  //     scene.fixedObstacle.color[0],
-  //     scene.fixedObstacle.color[1],
-  //     scene.fixedObstacle.color[2],
-  //   );
-  //   gl.uniform2f(
-  //     gl.getUniformLocation(meshShader, 'translation'),
-  //     scene.fixedObstacle.x,
-  //     scene.fixedObstacle.y,
-  //   );
-  //   gl.uniform1f(
-  //     gl.getUniformLocation(meshShader, 'scale'),
-  //     scene.fixedObstacle.size,
-  //   );
-
-  //   const posLoc = gl.getAttribLocation(meshShader, 'attrPosition');
-  //   gl.enableVertexAttribArray(posLoc);
-  //   gl.bindBuffer(gl.ARRAY_BUFFER, diamondVertBuffer);
-  //   gl.vertexAttribPointer(posLoc, 2, gl.FLOAT, false, 0, 0);
-
-  //   gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, diamondIdBuffer);
-  //   gl.drawElements(gl.TRIANGLES, 9, gl.UNSIGNED_SHORT, 0);
-
-  //   gl.disableVertexAttribArray(posLoc);
-  // }
-
-  // drawDiamondObstacle();
+  drawDiamondObstacle();
 
   // water
-  // if (scene.showParticles) {
-  //   gl.clear(gl.DEPTH_BUFFER_BIT);
-  //   const pointSize =
-  //     ((2.0 * scene.fluid.particleRadius) / simWidth) * canvas.width * 0.3;
-
-  //   gl.useProgram(pointShader);
-  //   gl.uniform2f(
-  //     gl.getUniformLocation(pointShader, 'domainSize'),
-  //     simWidth,
-  //     simHeight,
-  //   );
-  //   gl.uniform1f(gl.getUniformLocation(pointShader, 'pointSize'), pointSize);
-  //   gl.uniform1f(gl.getUniformLocation(pointShader, 'drawDisk'), 1.0);
-
-  //   if (pointVertexBuffer === null) pointVertexBuffer = gl.createBuffer();
-  //   if (pointColorBuffer === null) pointColorBuffer = gl.createBuffer();
-
-  //   gl.bindBuffer(gl.ARRAY_BUFFER, pointVertexBuffer);
-  //   gl.bufferData(gl.ARRAY_BUFFER, scene.fluid.particlePos, gl.DYNAMIC_DRAW);
-
-  //   const posLoc = gl.getAttribLocation(pointShader, 'attrPosition');
-  //   gl.enableVertexAttribArray(posLoc);
-  //   gl.vertexAttribPointer(posLoc, 2, gl.FLOAT, false, 0, 0);
-
-  //   gl.bindBuffer(gl.ARRAY_BUFFER, pointColorBuffer);
-  //   gl.bufferData(gl.ARRAY_BUFFER, scene.fluid.particleColor, gl.DYNAMIC_DRAW);
-
-  //   const colorLoc = gl.getAttribLocation(pointShader, 'attrColor');
-  //   gl.enableVertexAttribArray(colorLoc);
-  //   gl.vertexAttribPointer(colorLoc, 3, gl.FLOAT, false, 0, 0);
-
-  //   gl.drawArrays(gl.POINTS, 0, scene.fluid.numParticles);
-
-  //   gl.disableVertexAttribArray(posLoc);
-  //   gl.disableVertexAttribArray(colorLoc);
-  //   gl.bindBuffer(gl.ARRAY_BUFFER, null);
-  // }
-
   if (scene.showParticles) {
     gl.clear(gl.DEPTH_BUFFER_BIT);
     const pointSize =
@@ -1630,50 +1510,6 @@ function setObstacle(x, y, reset) {
 }
 
 // interaction -------------------------------------------------------
-
-// function setObstacle(x, y, reset) {
-//   const obstaclePadding = scene.obstacleRadius * 1.2; // 20% padding
-
-//   // Constrain position to stay within walls
-//   x = Math.max(obstaclePadding, Math.min(simWidth - obstaclePadding, x));
-//   y = Math.max(obstaclePadding, Math.min(simHeight - obstaclePadding, y));
-
-//   let vx = 0.0;
-//   let vy = 0.0;
-
-//   if (!reset) {
-//     vx = (x - scene.obstacleX) / scene.dt;
-//     vy = (y - scene.obstacleY) / scene.dt;
-//   }
-
-//   scene.obstacleX = x;
-//   scene.obstacleY = y;
-
-//   // Rest of your existing obstacle setup code...
-//   const r = scene.obstacleRadius;
-//   const f = scene.fluid;
-//   const n = f.fNumY;
-//   const cd = Math.sqrt(2) * f.h;
-
-//   for (let i = 1; i < f.fNumX - 2; i++) {
-//     for (let j = 1; j < f.fNumY - 2; j++) {
-//       f.s[i * n + j] = 1.0;
-//       const dx = (i + 0.5) * f.h - x;
-//       const dy = (j + 0.5) * f.h - y;
-//       if (dx * dx + dy * dy < r * r) {
-//         f.s[i * n + j] = 0.0;
-//         f.u[i * n + j] = vx;
-//         f.u[(i + 1) * n + j] = vx;
-//         f.v[i * n + j] = vy;
-//         f.v[i * n + j + 1] = vy;
-//       }
-//     }
-//   }
-
-//   scene.showObstacle = true;
-//   scene.obstacleVelX = vx;
-//   scene.obstacleVelY = vy;
-// }
 
 let prevMouseX = null;
 let prevMouseY = null;
