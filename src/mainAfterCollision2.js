@@ -3,6 +3,7 @@ import './style.css';
 const wrapper = document.querySelector('.wrapper');
 const canvas = document.getElementById('canvas');
 const gl = canvas.getContext('webgl');
+// const gl2 = canvas.getContext('2d');
 // canvas.width = window.innerWidth - 20;
 // canvas.height = window.innerHeight - 20;
 // canvas.width = wrapper.clientWidth + wrapper.clientWidth * 0.055;
@@ -280,91 +281,66 @@ class FlipFluid {
         // First, check if the particle is inside the diamond
         const insideDiamond = isPointInDiamond(x, y, diamond);
 
+        // Inside handleParticleCollisions where we define the vertices for the diamond
         const vertices = [
           {
-            x: diamond.x - 0.56 * diamond.size,
-            y: diamond.y + 0.33 + 0.3 * diamond.size,
-          }, // Top-left
-          { x: diamond.x, y: diamond.y + 0.33 + 0.3 * diamond.size }, // Top-middle
+            x: diamond.x - 0.28 * diamond.size,
+            y: diamond.y + 0.25 + 0.3 * diamond.size,
+          },
+          { x: diamond.x, y: diamond.y + 0.25 + 0.3 * diamond.size },
           {
-            x: diamond.x + 0.56 * diamond.size,
-            y: diamond.y + 0.33 + 0.3 * diamond.size,
-          }, // Top-right
-          { x: diamond.x + 0.785 * diamond.size, y: diamond.y + 0.36 }, // Right point
+            x: diamond.x + 0.28 * diamond.size,
+            y: diamond.y + 0.25 + 0.3 * diamond.size,
+          },
+          { x: diamond.x + 0.4 * diamond.size, y: diamond.y + 0.25 },
           {
-            x: diamond.x + 0.33 * diamond.size,
-            y: diamond.y + 0.32 - 0.35 * diamond.size,
-          }, // Bottom-right
-          { x: diamond.x, y: diamond.y + 0.39 - 0.7 * diamond.size }, // Bottom point
+            x: diamond.x + 0.2 * diamond.size,
+            y: diamond.y + 0.25 - 0.35 * diamond.size,
+          },
+          { x: diamond.x, y: diamond.y + 0.25 - 0.7 * diamond.size },
           {
-            x: diamond.x - 0.33 * diamond.size,
-            y: diamond.y + 0.32 - 0.35 * diamond.size,
-          }, // Bottom-left
-          { x: diamond.x - 0.785 * diamond.size, y: diamond.y + 0.36 }, // Left point
+            x: diamond.x - 0.2 * diamond.size,
+            y: diamond.y + 0.25 - 0.35 * diamond.size,
+          },
+          { x: diamond.x - 0.4 * diamond.size, y: diamond.y + 0.25 },
           {
-            x: diamond.x - 0.58 * diamond.size,
-            y: diamond.y + 0.3 + 0.3 * diamond.size,
-          }, // Back to first
+            x: diamond.x - 0.28 * diamond.size,
+            y: diamond.y + 0.25 + 0.3 * diamond.size,
+          },
         ];
+
+        // const vertices = [
+        //   {
+        //     x: diamond.x - 0.58 * diamond.size,
+        //     y: diamond.y + 0.3 + 0.3 * diamond.size,
+        //   }, // Top-left
+        //   { x: diamond.x, y: diamond.y + 0.3 + 0.3 * diamond.size }, // Top-middle
+        //   {
+        //     x: diamond.x + 0.58 * diamond.size,
+        //     y: diamond.y + 0.3 + 0.3 * diamond.size,
+        //   }, // Top-right
+        //   { x: diamond.x + 0.77 * diamond.size, y: diamond.y + 0.32 }, // Right point
+        //   {
+        //     x: diamond.x + 0.33 * diamond.size,
+        //     y: diamond.y + 0.32 - 0.35 * diamond.size,
+        //   }, // Bottom-right
+        //   { x: diamond.x, y: diamond.y + 0.35 - 0.7 * diamond.size }, // Bottom point
+        //   {
+        //     x: diamond.x - 0.33 * diamond.size,
+        //     y: diamond.y + 0.32 - 0.35 * diamond.size,
+        //   }, // Bottom-left
+        //   { x: diamond.x - 0.77 * diamond.size, y: diamond.y + 0.32 }, // Left point
+        //   {
+        //     x: diamond.x - 0.58 * diamond.size,
+        //     y: diamond.y + 0.3 + 0.3 * diamond.size,
+        //   }, // Back to first
+        // ];
 
         if (insideDiamond) {
           // Particle is trapped inside - we need to eject it
 
           // Find the closest edge to eject the particle
           const diamondCenter = { x: diamond.x, y: diamond.y + 0.25 }; // Adjusted for yTransform
-          // const vertices = [
-          //   {
-          //     x: diamond.x - 0.28 * diamond.size,
-          //     y: diamond.y + 0.25 + 0.3 * diamond.size,
-          //   },
-          //   { x: diamond.x, y: diamond.y + 0.25 + 0.3 * diamond.size },
-          //   {
-          //     x: diamond.x + 0.28 * diamond.size,
-          //     y: diamond.y + 0.25 + 0.3 * diamond.size,
-          //   },
-          //   { x: diamond.x + 0.4 * diamond.size, y: diamond.y + 0.25 },
-          //   {
-          //     x: diamond.x + 0.2 * diamond.size,
-          //     y: diamond.y + 0.25 - 0.35 * diamond.size,
-          //   },
-          //   { x: diamond.x, y: diamond.y + 0.25 - 0.7 * diamond.size },
-          //   {
-          //     x: diamond.x - 0.2 * diamond.size,
-          //     y: diamond.y + 0.25 - 0.35 * diamond.size,
-          //   },
-          //   { x: diamond.x - 0.4 * diamond.size, y: diamond.y + 0.25 },
-          //   {
-          //     x: diamond.x - 0.28 * diamond.size,
-          //     y: diamond.y + 0.25 + 0.3 * diamond.size,
-          //   },
-          // ];
-
-          // const vertices = [
-          //   {
-          //     x: diamond.x - 0.58 * diamond.size,
-          //     y: diamond.y + 0.33 + 0.3 * diamond.size,
-          //   }, // Top-left
-          //   { x: diamond.x, y: diamond.y + 0.33 + 0.3 * diamond.size }, // Top-middle
-          //   {
-          //     x: diamond.x + 0.58 * diamond.size,
-          //     y: diamond.y + 0.33 + 0.3 * diamond.size,
-          //   }, // Top-right
-          //   { x: diamond.x + 0.77 * diamond.size, y: diamond.y + 0.32 }, // Right point
-          //   {
-          //     x: diamond.x + 0.33 * diamond.size,
-          //     y: diamond.y + 0.32 - 0.35 * diamond.size,
-          //   }, // Bottom-right
-          //   { x: diamond.x, y: diamond.y + 0.35 - 0.7 * diamond.size }, // Bottom point
-          //   {
-          //     x: diamond.x - 0.33 * diamond.size,
-          //     y: diamond.y + 0.32 - 0.35 * diamond.size,
-          //   }, // Bottom-left
-          //   { x: diamond.x - 0.77 * diamond.size, y: diamond.y + 0.32 }, // Left point
-          //   {
-          //     x: diamond.x - 0.58 * diamond.size,
-          //     y: diamond.y + 0.3 + 0.3 * diamond.size,
-          //   }, // Back to first
-          // ];
 
           // Find the closest edge
           let minDist = Infinity;
@@ -453,62 +429,6 @@ class FlipFluid {
         } else {
           // Instead of a binary in/out test, compute distance to closest edge
           const diamondCenter = { x: diamond.x, y: diamond.y + 0.25 }; // Adjusted for yTransform
-
-          // For simplicity, we'll use a distance field approach
-          // First, find the closest point on each diamond edge
-          // const vertices = [
-          //   {
-          //     x: diamond.x - 0.28 * diamond.size,
-          //     y: diamond.y + 0.25 + 0.3 * diamond.size,
-          //   }, // Top-left
-          //   { x: diamond.x, y: diamond.y + 0.25 + 0.3 * diamond.size }, // Top-middle
-          //   {
-          //     x: diamond.x + 0.28 * diamond.size,
-          //     y: diamond.y + 0.25 + 0.3 * diamond.size,
-          //   }, // Top-right
-          //   { x: diamond.x + 0.4 * diamond.size, y: diamond.y + 0.25 }, // Right point
-          //   {
-          //     x: diamond.x + 0.2 * diamond.size,
-          //     y: diamond.y + 0.25 - 0.35 * diamond.size,
-          //   }, // Bottom-right
-          //   { x: diamond.x, y: diamond.y + 0.25 - 0.7 * diamond.size }, // Bottom point
-          //   {
-          //     x: diamond.x - 0.2 * diamond.size,
-          //     y: diamond.y + 0.25 - 0.35 * diamond.size,
-          //   }, // Bottom-left
-          //   { x: diamond.x - 0.4 * diamond.size, y: diamond.y + 0.25 }, // Left point
-          //   {
-          //     x: diamond.x - 0.28 * diamond.size,
-          //     y: diamond.y + 0.25 + 0.3 * diamond.size,
-          //   }, // Back to first
-          // ];
-
-          // const vertices = [
-          //   {
-          //     x: diamond.x - 0.58 * diamond.size,
-          //     y: diamond.y + 0.33 + 0.3 * diamond.size,
-          //   }, // Top-left
-          //   { x: diamond.x, y: diamond.y + 0.33 + 0.3 * diamond.size }, // Top-middle
-          //   {
-          //     x: diamond.x + 0.58 * diamond.size,
-          //     y: diamond.y + 0.33 + 0.3 * diamond.size,
-          //   }, // Top-right
-          //   { x: diamond.x + 0.77 * diamond.size, y: diamond.y + 0.32 }, // Right point
-          //   {
-          //     x: diamond.x + 0.33 * diamond.size,
-          //     y: diamond.y + 0.32 - 0.35 * diamond.size,
-          //   }, // Bottom-right
-          //   { x: diamond.x, y: diamond.y + 0.35 - 0.7 * diamond.size }, // Bottom point
-          //   {
-          //     x: diamond.x - 0.33 * diamond.size,
-          //     y: diamond.y + 0.32 - 0.35 * diamond.size,
-          //   }, // Bottom-left
-          //   { x: diamond.x - 0.77 * diamond.size, y: diamond.y + 0.32 }, // Left point
-          //   {
-          //     x: diamond.x - 0.58 * diamond.size,
-          //     y: diamond.y + 0.3 + 0.3 * diamond.size,
-          //   }, // Back to first
-          // ];
 
           // Calculate distance to each edge and find the closest one
           let minDist = Infinity;
@@ -1168,7 +1088,7 @@ function setupScene() {
   // For fixed obstacle
   scene.fixedObstacle.x = simWidth / 2;
   scene.fixedObstacle.y = simHeight / 2;
-  scene.fixedObstacle.size = 1.5;
+  scene.fixedObstacle.size = 1;
   scene.fixedObstacle.show = true;
 
   setObstacle(3.0, 2.0, true);
@@ -1414,30 +1334,18 @@ function isPointInDiamond(x, y, diamond) {
   const dx = x - diamond.x;
   const dy = y - diamond.y - 0.25; // Account for yTransform in createDiamondShape
 
-  // Define diamond shape vertices (matching createDiamondShape but relative to 0,0)
+  // Use the EXACT same vertices as in createDiamondShape
   const vertices = [
-    [-0.28, 0.3], // Top-left
+    [-0.28, 0.3], // Top-left vertex
     [0.0, 0.3], // Top-middle
-    [0.28, 0.3], // Top-right
+    [0.28, 0.3], // Top-right vertex
     [0.4, 0.0], // Right point
-    [0.2, -0.35], // Bottom-right
+    [0.2, -0.35], // Bottom-right diagonal
     [0.0, -0.7], // Bottom point
-    [-0.2, -0.35], // Bottom-left
+    [-0.2, -0.35], // Bottom-left diagonal
     [-0.4, 0.0], // Left point
-    [-0.28, 0.3], // Back to first (close polygon)
+    [-0.28, 0.3], // Back to first
   ];
-
-  // const vertices = [
-  //   [-0.58, 0.3], // Top-left
-  //   [0.0, 0.3], // Top-middle
-  //   [0.58, 0.3], // Top-right
-  //   [0.77, 0.32], // Right point
-  //   [0.33, -0.32], // Bottom-right
-  //   [0.0, -0.7], // Bottom point
-  //   [-0.33, -0.32], // Bottom-left
-  //   [-0.77, 0.32], // Left point
-  //   [-0.58, 0.3], // Back to first (close polygon)
-  // ];
 
   // Scale vertices by the diamond size
   const scaledVertices = vertices.map((v) => [
@@ -1465,18 +1373,51 @@ function isPointInDiamond(x, y, diamond) {
   return inside;
 }
 
+// function setupFixedObstacle() {
+//   // The diamond properties are already set in scene.fixedObstacle
+//   // Mark cells inside the diamond as solid in the fluid grid
+//   const f = scene.fluid;
+//   const n = f.fNumY;
+
+//   for (let i = 1; i < f.fNumX - 2; i++) {
+//     for (let j = 1; j < f.fNumY - 2; j++) {
+//       const cellX = (i + 0.5) * f.h;
+//       const cellY = (j + 0.5) * f.h;
+
+//       if (isPointInDiamond(cellX, cellY, scene.fixedObstacle)) {
+//         f.s[i * n + j] = 0.0; // Mark as solid cell
+//       }
+//     }
+//   }
+// }
+
 function setupFixedObstacle() {
-  // The diamond properties are already set in scene.fixedObstacle
-  // Mark cells inside the diamond as solid in the fluid grid
   const f = scene.fluid;
   const n = f.fNumY;
+  const diamond = scene.fixedObstacle;
 
+  // Define diamond vertices (same as in createDiamondShape)
+  const vertices = [
+    [-0.28, 0.3], // Top-left vertex
+    [0.0, 0.3], // Top-middle
+    [0.28, 0.3], // Top-right vertex
+    [0.4, 0.0], // Right point
+    [0.2, -0.35], // Bottom-right diagonal
+    [0.0, -0.7], // Bottom point
+    [-0.2, -0.35], // Bottom-left diagonal
+    [-0.4, 0.0], // Left point
+  ].map((v) => ({
+    x: diamond.x + v[0] * diamond.size,
+    y: diamond.y + 0.25 + v[1] * diamond.size,
+  }));
+
+  // Mark cells inside the diamond as solid
   for (let i = 1; i < f.fNumX - 2; i++) {
     for (let j = 1; j < f.fNumY - 2; j++) {
       const cellX = (i + 0.5) * f.h;
       const cellY = (j + 0.5) * f.h;
 
-      if (isPointInDiamond(cellX, cellY, scene.fixedObstacle)) {
+      if (isPointInDiamond(cellX, cellY, diamond)) {
         f.s[i * n + j] = 0.0; // Mark as solid cell
       }
     }
@@ -1602,6 +1543,52 @@ function drawDiamondObstacle() {
   gl.drawArrays(gl.TRIANGLE_FAN, 0, diamondData.vertexCount);
 }
 
+function drawDiamondBoundary() {
+  if (!scene.fixedObstacle.show) return;
+
+  const diamond = scene.fixedObstacle;
+  const vertices = [
+    [-0.28, 0.3], // Top-left vertex
+    [0.0, 0.3], // Top-middle
+    [0.28, 0.3], // Top-right vertex
+    [0.4, 0.0], // Right point
+    [0.2, -0.35], // Bottom-right diagonal
+    [0.0, -0.7], // Bottom point
+    [-0.2, -0.35], // Bottom-left diagonal
+    [-0.4, 0.0], // Left point
+  ].map((v) => ({
+    x: diamond.x + v[0] * diamond.size,
+    y: diamond.y + 0.25 + v[1] * diamond.size,
+  }));
+
+  // Draw lines connecting vertices (using WebGL)
+  gl.useProgram(meshShader);
+  gl.uniform2f(
+    gl.getUniformLocation(meshShader, 'domainSize'),
+    simWidth,
+    simHeight,
+  );
+  gl.uniform3f(
+    gl.getUniformLocation(meshShader, 'color'),
+    1.0,
+    0.0,
+    0.0, // Red outline
+  );
+
+  // Draw each edge of the diamond
+  for (let i = 0; i < vertices.length; i++) {
+    const v1 = vertices[i];
+    const v2 = vertices[(i + 1) % vertices.length];
+
+    // Draw line from v1 to v2
+    gl.lineWidth(3.0);
+    gl.beginPath();
+    gl.moveTo(v1.x, v1.y);
+    gl.lineTo(v2.x, v2.y);
+    gl.stroke();
+  }
+}
+
 function draw() {
   gl.clearColor(0.0, 0.0, 0.0, 1.0);
   gl.clear(gl.COLOR_BUFFER_BIT);
@@ -1676,6 +1663,8 @@ function draw() {
   // // Draw fixed diamond obstacle
 
   drawDiamondObstacle();
+
+  // drawDiamondBoundary();
 
   // water
   if (scene.showParticles) {
