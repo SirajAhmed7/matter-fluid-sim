@@ -3,7 +3,6 @@ import './style.css';
 const wrapper = document.querySelector('.wrapper');
 const canvas = document.getElementById('canvas');
 const gl = canvas.getContext('webgl');
-// const gl2 = canvas.getContext('2d');
 // canvas.width = window.innerWidth - 20;
 // canvas.height = window.innerHeight - 20;
 // canvas.width = wrapper.clientWidth + wrapper.clientWidth * 0.055;
@@ -226,8 +225,10 @@ class FlipFluid {
     }
   }
 
-  // Improved handling of diamond collisions
+  // With fixed obstacle
   // Enhanced particle ejection from diamond obstacle
+  // Enhanced particle ejection from diamond obstacle
+  // Improved handling of diamond collisions
   handleParticleCollisions(obstacleX, obstacleY, obstacleRadius) {
     const h = 1.0 / this.fInvSpacing;
     const r = this.particleRadius;
@@ -249,13 +250,14 @@ class FlipFluid {
       let x = this.particlePos[2 * i];
       let y = this.particlePos[2 * i + 1];
 
-      // Check collision with moving circular obstacle (keeping this the same)
+      // Check collision with moving circular obstacle (existing code)
       const dxCircle = x - obstacleX;
       const dyCircle = y - obstacleY;
       const d2Circle = dxCircle * dxCircle + dyCircle * dyCircle;
 
       if (d2Circle < minDistCircle2 && d2Circle > 0.0) {
         const d = Math.sqrt(d2Circle);
+        const correction = (minDistCircle - d) / d;
 
         // Move particle to surface
         x = obstacleX + dxCircle * (minDistCircle / d);
@@ -265,7 +267,7 @@ class FlipFluid {
         const dot =
           dxCircle * this.particleVel[2 * i] +
           dyCircle * this.particleVel[2 * i + 1];
-        const damping = 0.7;
+        const damping = 0.7; // Reduced damping for smoother motion
         this.particleVel[2 * i] =
           (this.particleVel[2 * i] -
             ((1.0 + damping) * dot * dxCircle) / d2Circle) *
@@ -276,229 +278,107 @@ class FlipFluid {
           damping;
       }
 
-      // Enhanced diamond collision and trapped particle handling
+      // Improved diamond collision detection and response
       if (diamond && diamond.show) {
-        // First, check if the particle is inside the diamond
-        const insideDiamond = isPointInDiamond(x, y, diamond);
+        // Instead of a binary in/out test, compute distance to closest edge
+        const diamondCenter = { x: diamond.x, y: diamond.y + 0.25 }; // Adjusted for yTransform
 
-        // Inside handleParticleCollisions where we define the vertices for the diamond
+        // For simplicity, we'll use a distance field approach
+        // First, find the closest point on each diamond edge
         const vertices = [
           {
             x: diamond.x - 0.28 * diamond.size,
             y: diamond.y + 0.25 + 0.3 * diamond.size,
-          },
-          { x: diamond.x, y: diamond.y + 0.25 + 0.3 * diamond.size },
+          }, // Top-left
+          { x: diamond.x, y: diamond.y + 0.25 + 0.3 * diamond.size }, // Top-middle
           {
             x: diamond.x + 0.28 * diamond.size,
             y: diamond.y + 0.25 + 0.3 * diamond.size,
-          },
-          { x: diamond.x + 0.4 * diamond.size, y: diamond.y + 0.25 },
+          }, // Top-right
+          { x: diamond.x + 0.4 * diamond.size, y: diamond.y + 0.25 }, // Right point
           {
             x: diamond.x + 0.2 * diamond.size,
             y: diamond.y + 0.25 - 0.35 * diamond.size,
-          },
-          { x: diamond.x, y: diamond.y + 0.25 - 0.7 * diamond.size },
+          }, // Bottom-right
+          { x: diamond.x, y: diamond.y + 0.25 - 0.7 * diamond.size }, // Bottom point
           {
             x: diamond.x - 0.2 * diamond.size,
             y: diamond.y + 0.25 - 0.35 * diamond.size,
-          },
-          { x: diamond.x - 0.4 * diamond.size, y: diamond.y + 0.25 },
+          }, // Bottom-left
+          { x: diamond.x - 0.4 * diamond.size, y: diamond.y + 0.25 }, // Left point
           {
             x: diamond.x - 0.28 * diamond.size,
             y: diamond.y + 0.25 + 0.3 * diamond.size,
-          },
+          }, // Back to first
         ];
 
-        // const vertices = [
-        //   {
-        //     x: diamond.x - 0.58 * diamond.size,
-        //     y: diamond.y + 0.3 + 0.3 * diamond.size,
-        //   }, // Top-left
-        //   { x: diamond.x, y: diamond.y + 0.3 + 0.3 * diamond.size }, // Top-middle
-        //   {
-        //     x: diamond.x + 0.58 * diamond.size,
-        //     y: diamond.y + 0.3 + 0.3 * diamond.size,
-        //   }, // Top-right
-        //   { x: diamond.x + 0.77 * diamond.size, y: diamond.y + 0.32 }, // Right point
-        //   {
-        //     x: diamond.x + 0.33 * diamond.size,
-        //     y: diamond.y + 0.32 - 0.35 * diamond.size,
-        //   }, // Bottom-right
-        //   { x: diamond.x, y: diamond.y + 0.35 - 0.7 * diamond.size }, // Bottom point
-        //   {
-        //     x: diamond.x - 0.33 * diamond.size,
-        //     y: diamond.y + 0.32 - 0.35 * diamond.size,
-        //   }, // Bottom-left
-        //   { x: diamond.x - 0.77 * diamond.size, y: diamond.y + 0.32 }, // Left point
-        //   {
-        //     x: diamond.x - 0.58 * diamond.size,
-        //     y: diamond.y + 0.3 + 0.3 * diamond.size,
-        //   }, // Back to first
-        // ];
+        // Calculate distance to each edge and find the closest one
+        let minDist = Infinity;
+        let closestEdgeNormal = { x: 0, y: 0 };
 
-        if (insideDiamond) {
-          // Particle is trapped inside - we need to eject it
+        for (let j = 0; j < vertices.length - 1; j++) {
+          const v1 = vertices[j];
+          const v2 = vertices[j + 1];
 
-          // Find the closest edge to eject the particle
-          const diamondCenter = { x: diamond.x, y: diamond.y + 0.25 }; // Adjusted for yTransform
+          // Calculate distance to line segment
+          const edgeX = v2.x - v1.x;
+          const edgeY = v2.y - v1.y;
+          const edgeLengthSquared = edgeX * edgeX + edgeY * edgeY;
 
-          // Find the closest edge
-          let minDist = Infinity;
-          let closestPoint = { x: 0, y: 0 };
+          // Find closest point on line segment
+          let t = ((x - v1.x) * edgeX + (y - v1.y) * edgeY) / edgeLengthSquared;
+          t = Math.max(0, Math.min(1, t)); // Clamp to segment
 
-          for (let j = 0; j < vertices.length - 1; j++) {
-            const v1 = vertices[j];
-            const v2 = vertices[j + 1];
+          const closestX = v1.x + t * edgeX;
+          const closestY = v1.y + t * edgeY;
 
-            // Calculate closest point on line segment
-            const edgeX = v2.x - v1.x;
-            const edgeY = v2.y - v1.y;
-            const edgeLengthSquared = edgeX * edgeX + edgeY * edgeY;
+          // Distance to closest point
+          const dx = x - closestX;
+          const dy = y - closestY;
+          const distSquared = dx * dx + dy * dy;
 
-            let t =
-              ((x - v1.x) * edgeX + (y - v1.y) * edgeY) / edgeLengthSquared;
-            t = Math.max(0, Math.min(1, t)); // Clamp to segment
+          if (distSquared < minDist) {
+            minDist = distSquared;
 
-            const pointOnEdge = {
-              x: v1.x + t * edgeX,
-              y: v1.y + t * edgeY,
-            };
+            // Calculate edge normal (perpendicular to edge)
+            const edgeLength = Math.sqrt(edgeLengthSquared);
+            closestEdgeNormal.x = -edgeY / edgeLength; // Rotate 90 degrees
+            closestEdgeNormal.y = edgeX / edgeLength;
 
-            // Distance to this point
-            const dx = x - pointOnEdge.x;
-            const dy = y - pointOnEdge.y;
-            const distSquared = dx * dx + dy * dy;
-
-            if (distSquared < minDist) {
-              minDist = distSquared;
-              closestPoint = pointOnEdge;
+            // Make sure normal points outward
+            const dotProduct =
+              dx * closestEdgeNormal.x + dy * closestEdgeNormal.y;
+            if (dotProduct < 0) {
+              closestEdgeNormal.x = -closestEdgeNormal.x;
+              closestEdgeNormal.y = -closestEdgeNormal.y;
             }
           }
+        }
 
-          // Safety buffer to ensure the particle is pushed outside
-          const safety = this.particleRadius * 2.5;
+        // Check if we need to handle a collision
+        const minDistance = Math.sqrt(minDist);
+        if (minDistance < this.particleRadius * 1.5) {
+          // Calculate penetration depth
+          const penetrationDepth = this.particleRadius * 1.5 - minDistance;
 
-          // Calculate direction from closest point to particle
-          const dx = x - closestPoint.x;
-          const dy = y - closestPoint.y;
-          const dist = Math.sqrt(dx * dx + dy * dy);
+          // Move particle along the normal by penetration depth
+          x += closestEdgeNormal.x * penetrationDepth;
+          y += closestEdgeNormal.y * penetrationDepth;
 
-          if (dist < 0.001) {
-            // If particle is exactly on edge, push outward from center
-            const dxFromCenter = x - diamond.x;
-            const dyFromCenter = y - (diamond.y + 0.25);
-            const distFromCenter = Math.sqrt(
-              dxFromCenter * dxFromCenter + dyFromCenter * dyFromCenter,
-            );
+          // Reflect velocity with reduced damping
+          const dot =
+            this.particleVel[2 * i] * closestEdgeNormal.x +
+            this.particleVel[2 * i + 1] * closestEdgeNormal.y;
+          const damping = 0.6; // Even gentler damping for diamond
 
-            // Place on edge and push out slightly
-            if (distFromCenter > 0.001) {
-              x = closestPoint.x + (dxFromCenter / distFromCenter) * safety;
-              y = closestPoint.y + (dyFromCenter / distFromCenter) * safety;
-            } else {
-              // Random ejection if at center
-              const angle = Math.random() * 2 * Math.PI;
-              x = diamond.x + Math.cos(angle) * diamond.size * 0.6;
-              y = diamond.y + 0.25 + Math.sin(angle) * diamond.size * 0.6;
-            }
-          } else {
-            // Normal case - push along the vector from closest point to particle
-            x = closestPoint.x + (dx / dist) * safety;
-            y = closestPoint.y + (dy / dist) * safety;
-          }
-
-          // Reflect velocity outward
-          const normalX = (x - closestPoint.x) / safety;
-          const normalY = (y - closestPoint.y) / safety;
-          const dotProd =
-            this.particleVel[2 * i] * normalX +
-            this.particleVel[2 * i + 1] * normalY;
-
-          // Only reflect if moving into the surface
-          if (dotProd < 0) {
-            const damping = 0.5; // Reduced damping for trapped particles
-            this.particleVel[2 * i] =
-              (this.particleVel[2 * i] - 1.5 * dotProd * normalX) * damping;
-            this.particleVel[2 * i + 1] =
-              (this.particleVel[2 * i + 1] - 1.5 * dotProd * normalY) * damping;
-          } else {
-            // Add a small outward impulse if not already moving outward
-            this.particleVel[2 * i] += normalX * 0.5;
-            this.particleVel[2 * i + 1] += normalY * 0.5;
-          }
-        } else {
-          // Instead of a binary in/out test, compute distance to closest edge
-          const diamondCenter = { x: diamond.x, y: diamond.y + 0.25 }; // Adjusted for yTransform
-
-          // Calculate distance to each edge and find the closest one
-          let minDist = Infinity;
-          let closestEdgeNormal = { x: 0, y: 0 };
-
-          for (let j = 0; j < vertices.length - 1; j++) {
-            const v1 = vertices[j];
-            const v2 = vertices[j + 1];
-
-            // Calculate distance to line segment
-            const edgeX = v2.x - v1.x;
-            const edgeY = v2.y - v1.y;
-            const edgeLengthSquared = edgeX * edgeX + edgeY * edgeY;
-
-            // Find closest point on line segment
-            let t =
-              ((x - v1.x) * edgeX + (y - v1.y) * edgeY) / edgeLengthSquared;
-            t = Math.max(0, Math.min(1, t)); // Clamp to segment
-
-            const closestX = v1.x + t * edgeX;
-            const closestY = v1.y + t * edgeY;
-
-            // Distance to closest point
-            const dx = x - closestX;
-            const dy = y - closestY;
-            const distSquared = dx * dx + dy * dy;
-
-            if (distSquared < minDist) {
-              minDist = distSquared;
-
-              // Calculate edge normal (perpendicular to edge)
-              const edgeLength = Math.sqrt(edgeLengthSquared);
-              closestEdgeNormal.x = -edgeY / edgeLength; // Rotate 90 degrees
-              closestEdgeNormal.y = edgeX / edgeLength;
-
-              // Make sure normal points outward
-              const dotProduct =
-                dx * closestEdgeNormal.x + dy * closestEdgeNormal.y;
-              if (dotProduct < 0) {
-                closestEdgeNormal.x = -closestEdgeNormal.x;
-                closestEdgeNormal.y = -closestEdgeNormal.y;
-              }
-            }
-          }
-
-          // Check if we need to handle a collision
-          const minDistance = Math.sqrt(minDist);
-          if (minDistance < this.particleRadius * 1.5) {
-            // Calculate penetration depth
-            const penetrationDepth = this.particleRadius * 1.5 - minDistance;
-
-            // Move particle along the normal by penetration depth
-            x += closestEdgeNormal.x * penetrationDepth;
-            y += closestEdgeNormal.y * penetrationDepth;
-
-            // Reflect velocity with reduced damping
-            const dot =
-              this.particleVel[2 * i] * closestEdgeNormal.x +
-              this.particleVel[2 * i + 1] * closestEdgeNormal.y;
-            const damping = 0.6; // Even gentler damping for diamond
-
-            this.particleVel[2 * i] =
-              (this.particleVel[2 * i] -
-                (1.0 + damping) * dot * closestEdgeNormal.x) *
-              damping;
-            this.particleVel[2 * i + 1] =
-              (this.particleVel[2 * i + 1] -
-                (1.0 + damping) * dot * closestEdgeNormal.y) *
-              damping;
-          }
+          this.particleVel[2 * i] =
+            (this.particleVel[2 * i] -
+              (1.0 + damping) * dot * closestEdgeNormal.x) *
+            damping;
+          this.particleVel[2 * i + 1] =
+            (this.particleVel[2 * i + 1] -
+              (1.0 + damping) * dot * closestEdgeNormal.y) *
+            damping;
         }
       }
 
@@ -603,24 +483,25 @@ class FlipFluid {
         }
       }
 
-      // for (let i = 0; i < this.fNumX; i++) {
-      //   for (let j = 0; j < this.fNumY; j++) {
-      //     const cellX = (i + 0.5) * this.h;
-      //     const cellY = (j + 0.5) * this.h;
+      // Add this inside the if(toGrid) part where you restore solid cells
+      for (let i = 0; i < this.fNumX; i++) {
+        for (let j = 0; j < this.fNumY; j++) {
+          const cellX = (i + 0.5) * this.h;
+          const cellY = (j + 0.5) * this.h;
 
-      //     // Check if cell is inside diamond
-      //     if (
-      //       scene.fixedObstacle &&
-      //       scene.fixedObstacle.show &&
-      //       isPointInDiamond(cellX, cellY, scene.fixedObstacle)
-      //     ) {
-      //       this.u[i * n + j] = 0.0;
-      //       this.v[i * n + j] = 0.0;
-      //       if (i > 0) this.u[(i - 1) * n + j] = 0.0;
-      //       if (j > 0) this.v[i * n + (j - 1)] = 0.0;
-      //     }
-      //   }
-      // }
+          // Check if cell is inside diamond
+          if (
+            scene.fixedObstacle &&
+            scene.fixedObstacle.show &&
+            isPointInDiamond(cellX, cellY, scene.fixedObstacle)
+          ) {
+            this.u[i * n + j] = 0.0;
+            this.v[i * n + j] = 0.0;
+            if (i > 0) this.u[(i - 1) * n + j] = 0.0;
+            if (j > 0) this.v[i * n + (j - 1)] = 0.0;
+          }
+        }
+      }
     }
 
     // if (!toGrid) {
@@ -805,22 +686,6 @@ class FlipFluid {
         }
       }
     }
-
-    // // Mark cells inside the diamond as solid
-    // const f = scene.fluid;
-    // // const n = f.fNumY;
-
-    // // Before simulation, mark diamond cells as solid
-    // for (let i = 1; i < f.fNumX - 2; i++) {
-    //   for (let j = 1; j < f.fNumY - 2; j++) {
-    //     const cellX = (i + 0.5) * f.h;
-    //     const cellY = (j + 0.5) * f.h;
-
-    //     if (isPointInDiamond(cellX, cellY, scene.fixedObstacle)) {
-    //       f.cellType[i * n + j] = SOLID_CELL; // Mark as solid cell
-    //     }
-    //   }
-    // }
   }
 
   updateParticleColors() {
@@ -930,7 +795,7 @@ class FlipFluid {
     obstacleY,
     obstacleRadius,
   ) {
-    const numSubSteps = 1;
+    const numSubSteps = 2;
     const sdt = dt / numSubSteps;
 
     for (let step = 0; step < numSubSteps; step++) {
@@ -950,6 +815,82 @@ class FlipFluid {
 
     this.updateParticleColors();
     this.updateCellColors();
+  }
+}
+
+function isPointInDiamond(x, y, diamond) {
+  // Transform coordinates relative to diamond center
+  const dx = x - diamond.x;
+  const dy = y - diamond.y - 0.25; // Account for yTransform in createDiamondShape
+
+  // Define diamond shape vertices (matching createDiamondShape but relative to 0,0)
+  const vertices = [
+    [-0.28, 0.3], // Top-left
+    [0.0, 0.3], // Top-middle
+    [0.28, 0.3], // Top-right
+    [0.4, 0.0], // Right point
+    [0.2, -0.35], // Bottom-right
+    [0.0, -0.7], // Bottom point
+    [-0.2, -0.35], // Bottom-left
+    [-0.4, 0.0], // Left point
+    [-0.28, 0.3], // Back to first (close polygon)
+  ];
+
+  // Scale vertices by the diamond size
+  const scaledVertices = vertices.map((v) => [
+    v[0] * diamond.size,
+    v[1] * diamond.size,
+  ]);
+
+  // Ray casting algorithm for point-in-polygon test
+  let inside = false;
+  for (
+    let i = 0, j = scaledVertices.length - 1;
+    i < scaledVertices.length;
+    j = i++
+  ) {
+    const xi = scaledVertices[i][0],
+      yi = scaledVertices[i][1];
+    const xj = scaledVertices[j][0],
+      yj = scaledVertices[j][1];
+
+    const intersect =
+      yi > dy != yj > dy && dx < ((xj - xi) * (dy - yi)) / (yj - yi) + xi;
+    if (intersect) inside = !inside;
+  }
+
+  return inside;
+}
+
+function setupFixedObstacle() {
+  // The diamond properties are already set in scene.fixedObstacle
+  const f = scene.fluid;
+  const n = f.fNumY;
+  const margin = 1; // Safety margin of cells around the diamond
+
+  // Create a slight buffer around the diamond obstacle
+  for (let i = 1; i < f.fNumX - 2; i++) {
+    for (let j = 1; j < f.fNumY - 2; j++) {
+      const cellX = (i + 0.5) * f.h;
+      const cellY = (j + 0.5) * f.h;
+
+      // Check if cell is near the diamond
+      const dx = cellX - scene.fixedObstacle.x;
+      const dy = cellY - (scene.fixedObstacle.y + 0.25);
+      const dist = Math.sqrt(dx * dx + dy * dy);
+
+      // Mark cells inside and very close to diamond as solid
+      if (
+        isPointInDiamond(cellX, cellY, scene.fixedObstacle) ||
+        (dist < scene.fixedObstacle.size * 0.4 &&
+          isPointInDiamond(cellX + 0.5 * f.h, cellY, scene.fixedObstacle)) ||
+        isPointInDiamond(cellX - 0.5 * f.h, cellY, scene.fixedObstacle) ||
+        isPointInDiamond(cellX, cellY + 0.5 * f.h, scene.fixedObstacle) ||
+        isPointInDiamond(cellX, cellY - 0.5 * f.h, scene.fixedObstacle)
+      ) {
+        f.s[i * n + j] = 0.0; // Mark as solid cell
+      }
+    }
   }
 }
 
@@ -977,54 +918,14 @@ const scene = {
   showGrid: false,
   fluid: null,
   fixedObstacle: {
-    // x: simWidth / 2,
-    // y: simHeight / 2,
-    x: 0.0,
-    y: 0.0,
-    size: 0.65, // Half-width/height of the diamond
+    x: simWidth / 2,
+    y: simHeight / 2,
+    size: 3.5, // Half-width/height of the diamond
     show: false,
     color: [1.0, 1.0, 1.0], // White color
     textureIntensity: 1.0,
   },
 };
-
-// Add to setupScene after creating the fluid
-function cleanupTrappedParticles() {
-  const f = scene.fluid;
-  const diamond = scene.fixedObstacle;
-
-  if (!diamond || !diamond.show) return;
-
-  // Check all particles for being inside the diamond
-  for (let i = 0; i < f.numParticles; i++) {
-    const x = f.particlePos[2 * i];
-    const y = f.particlePos[2 * i + 1];
-
-    if (isPointInDiamond(x, y, diamond)) {
-      // Move the particle to a safe position outside
-      const dx = x - diamond.x;
-      const dy = y - (diamond.y + 0.25);
-      const dist = Math.sqrt(dx * dx + dy * dy);
-
-      // Push out along the ray from center
-      if (dist > 0.001) {
-        const safeRadius = diamond.size * 1.1; // Safe distance outside
-        f.particlePos[2 * i] = diamond.x + (dx / dist) * safeRadius;
-        f.particlePos[2 * i + 1] = diamond.y + 0.25 + (dy / dist) * safeRadius;
-      } else {
-        // Random position if at center
-        const angle = Math.random() * 2 * Math.PI;
-        f.particlePos[2 * i] = diamond.x + Math.cos(angle) * diamond.size * 1.1;
-        f.particlePos[2 * i + 1] =
-          diamond.y + 0.25 + Math.sin(angle) * diamond.size * 1.1;
-      }
-
-      // Zero out velocity to prevent immediate re-entry
-      f.particleVel[2 * i] = 0;
-      f.particleVel[2 * i + 1] = 0;
-    }
-  }
-}
 
 function setupScene() {
   scene.obstacleRadius = 0.35;
@@ -1088,13 +989,11 @@ function setupScene() {
   // For fixed obstacle
   scene.fixedObstacle.x = simWidth / 2;
   scene.fixedObstacle.y = simHeight / 2;
-  scene.fixedObstacle.size = 1;
+  scene.fixedObstacle.size = 1.5;
   scene.fixedObstacle.show = true;
 
   setObstacle(3.0, 2.0, true);
   setupFixedObstacle();
-  // Call this at the end of your setupScene function:
-  cleanupTrappedParticles();
 }
 
 // draw -------------------------------------------------------
@@ -1329,101 +1228,6 @@ function createDiamondShape() {
   };
 }
 
-function isPointInDiamond(x, y, diamond) {
-  // Transform coordinates relative to diamond center
-  const dx = x - diamond.x;
-  const dy = y - diamond.y - 0.25; // Account for yTransform in createDiamondShape
-
-  // Use the EXACT same vertices as in createDiamondShape
-  const vertices = [
-    [-0.28, 0.3], // Top-left vertex
-    [0.0, 0.3], // Top-middle
-    [0.28, 0.3], // Top-right vertex
-    [0.4, 0.0], // Right point
-    [0.2, -0.35], // Bottom-right diagonal
-    [0.0, -0.7], // Bottom point
-    [-0.2, -0.35], // Bottom-left diagonal
-    [-0.4, 0.0], // Left point
-    [-0.28, 0.3], // Back to first
-  ];
-
-  // Scale vertices by the diamond size
-  const scaledVertices = vertices.map((v) => [
-    v[0] * diamond.size,
-    v[1] * diamond.size,
-  ]);
-
-  // Ray casting algorithm for point-in-polygon test
-  let inside = false;
-  for (
-    let i = 0, j = scaledVertices.length - 1;
-    i < scaledVertices.length;
-    j = i++
-  ) {
-    const xi = scaledVertices[i][0],
-      yi = scaledVertices[i][1];
-    const xj = scaledVertices[j][0],
-      yj = scaledVertices[j][1];
-
-    const intersect =
-      yi > dy != yj > dy && dx < ((xj - xi) * (dy - yi)) / (yj - yi) + xi;
-    if (intersect) inside = !inside;
-  }
-
-  return inside;
-}
-
-// function setupFixedObstacle() {
-//   // The diamond properties are already set in scene.fixedObstacle
-//   // Mark cells inside the diamond as solid in the fluid grid
-//   const f = scene.fluid;
-//   const n = f.fNumY;
-
-//   for (let i = 1; i < f.fNumX - 2; i++) {
-//     for (let j = 1; j < f.fNumY - 2; j++) {
-//       const cellX = (i + 0.5) * f.h;
-//       const cellY = (j + 0.5) * f.h;
-
-//       if (isPointInDiamond(cellX, cellY, scene.fixedObstacle)) {
-//         f.s[i * n + j] = 0.0; // Mark as solid cell
-//       }
-//     }
-//   }
-// }
-
-function setupFixedObstacle() {
-  const f = scene.fluid;
-  const n = f.fNumY;
-  const diamond = scene.fixedObstacle;
-
-  // Define diamond vertices (same as in createDiamondShape)
-  const vertices = [
-    [-0.28, 0.3], // Top-left vertex
-    [0.0, 0.3], // Top-middle
-    [0.28, 0.3], // Top-right vertex
-    [0.4, 0.0], // Right point
-    [0.2, -0.35], // Bottom-right diagonal
-    [0.0, -0.7], // Bottom point
-    [-0.2, -0.35], // Bottom-left diagonal
-    [-0.4, 0.0], // Left point
-  ].map((v) => ({
-    x: diamond.x + v[0] * diamond.size,
-    y: diamond.y + 0.25 + v[1] * diamond.size,
-  }));
-
-  // Mark cells inside the diamond as solid
-  for (let i = 1; i < f.fNumX - 2; i++) {
-    for (let j = 1; j < f.fNumY - 2; j++) {
-      const cellX = (i + 0.5) * f.h;
-      const cellY = (j + 0.5) * f.h;
-
-      if (isPointInDiamond(cellX, cellY, diamond)) {
-        f.s[i * n + j] = 0.0; // Mark as solid cell
-      }
-    }
-  }
-}
-
 function drawDiamondObstacle() {
   if (!scene.fixedObstacle.show || !diamondTexture) return;
 
@@ -1543,52 +1347,6 @@ function drawDiamondObstacle() {
   gl.drawArrays(gl.TRIANGLE_FAN, 0, diamondData.vertexCount);
 }
 
-function drawDiamondBoundary() {
-  if (!scene.fixedObstacle.show) return;
-
-  const diamond = scene.fixedObstacle;
-  const vertices = [
-    [-0.28, 0.3], // Top-left vertex
-    [0.0, 0.3], // Top-middle
-    [0.28, 0.3], // Top-right vertex
-    [0.4, 0.0], // Right point
-    [0.2, -0.35], // Bottom-right diagonal
-    [0.0, -0.7], // Bottom point
-    [-0.2, -0.35], // Bottom-left diagonal
-    [-0.4, 0.0], // Left point
-  ].map((v) => ({
-    x: diamond.x + v[0] * diamond.size,
-    y: diamond.y + 0.25 + v[1] * diamond.size,
-  }));
-
-  // Draw lines connecting vertices (using WebGL)
-  gl.useProgram(meshShader);
-  gl.uniform2f(
-    gl.getUniformLocation(meshShader, 'domainSize'),
-    simWidth,
-    simHeight,
-  );
-  gl.uniform3f(
-    gl.getUniformLocation(meshShader, 'color'),
-    1.0,
-    0.0,
-    0.0, // Red outline
-  );
-
-  // Draw each edge of the diamond
-  for (let i = 0; i < vertices.length; i++) {
-    const v1 = vertices[i];
-    const v2 = vertices[(i + 1) % vertices.length];
-
-    // Draw line from v1 to v2
-    gl.lineWidth(3.0);
-    gl.beginPath();
-    gl.moveTo(v1.x, v1.y);
-    gl.lineTo(v2.x, v2.y);
-    gl.stroke();
-  }
-}
-
 function draw() {
   gl.clearColor(0.0, 0.0, 0.0, 1.0);
   gl.clear(gl.COLOR_BUFFER_BIT);
@@ -1663,8 +1421,6 @@ function draw() {
   // // Draw fixed diamond obstacle
 
   drawDiamondObstacle();
-
-  // drawDiamondBoundary();
 
   // water
   if (scene.showParticles) {
@@ -2081,8 +1837,6 @@ const simulate = () => {
 const update = () => {
   simulate();
   draw();
-  // Call this at the end of your setupScene function:
-  cleanupTrappedParticles();
   requestAnimationFrame(update);
 };
 
